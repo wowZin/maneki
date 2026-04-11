@@ -27,6 +27,7 @@ from app.schemas.agent_market import (
     WeightedDecisionRequest,
     WeightedDecisionResponse,
     AgentMarketReviewCreate,
+    AgentMarketReviewResponse,
     InitializeUserAgentsRequest,
     UserAgentStats,
     SupportedModels,
@@ -39,7 +40,6 @@ from app.services.agent_market_service import (
 )
 
 router = APIRouter()
-
 
 # ========== Agent 市场 (Marketplace) ==========
 
@@ -75,7 +75,6 @@ async def create_template(
     )
     return template
 
-
 @router.get("/market/templates", response_model=List[AgentTemplateListItem])
 async def list_templates(
     category: Optional[str] = None,
@@ -107,7 +106,6 @@ async def list_templates(
     # TODO: 添加 is_favorited 和 is_cloned 标记
     return templates
 
-
 @router.get("/market/templates/featured", response_model=List[AgentTemplateListItem])
 async def list_featured_templates(
     category: Optional[str] = None,
@@ -131,7 +129,6 @@ async def list_featured_templates(
         page_size=page_size,
     )
     return templates
-
 
 @router.get("/market/templates/rankings")
 async def get_template_rankings(
@@ -183,7 +180,6 @@ async def get_template_rankings(
         ],
     }
 
-
 @router.get("/market/templates/{template_id}/stats")
 async def get_template_stats(
     template_id: UUID,
@@ -215,7 +211,6 @@ async def get_template_stats(
         "hot_score": float(stats.hot_score),
         "calculated_at": stats.calculated_at,
     }
-
 
 # ========== Agent Owner 返佣管理 ==========
 
@@ -258,7 +253,6 @@ async def get_my_rebates(
         ],
     }
 
-
 @router.get("/owner/stats")
 async def get_my_owner_stats(
     db: AsyncSession = Depends(get_db_session),
@@ -280,7 +274,6 @@ async def get_my_owner_stats(
     }
 
     return stats
-
 
 @router.post("/owner/templates/{template_id}/set-featured")
 async def set_template_featured(
@@ -319,7 +312,6 @@ async def set_template_featured(
         "is_featured": is_featured,
     }
 
-
 @router.get("/market/templates/{template_id}", response_model=AgentTemplateResponse)
 async def get_template(
     template_id: UUID,
@@ -334,7 +326,6 @@ async def get_template(
     if not template.is_public and template.creator_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权查看该模板")
     return template
-
 
 @router.post("/market/templates/{template_id}/clone", response_model=UserAgentResponse)
 async def clone_template(
@@ -382,7 +373,6 @@ async def clone_template(
     )
     return agent
 
-
 @router.post("/market/templates/{template_id}/reviews", response_model=AgentMarketReviewResponse)
 async def add_template_review(
     template_id: UUID,
@@ -422,7 +412,6 @@ async def add_template_review(
         "created_at": review.created_at,
     }
 
-
 # ========== 用户 Agent 管理 ==========
 
 @router.post("/initialize", response_model=List[UserAgentResponse])
@@ -438,7 +427,6 @@ async def initialize_default_agents(
         llm_config=None,  # 使用默认配置
     )
     return agents
-
 
 @router.post("/my-agents", response_model=UserAgentResponse)
 async def create_agent(
@@ -475,7 +463,6 @@ async def create_agent(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
 @router.get("/my-agents", response_model=List[UserAgentListItem])
 async def list_my_agents(
     category: Optional[str] = None,
@@ -496,7 +483,6 @@ async def list_my_agents(
     )
     return agents
 
-
 @router.get("/my-agents/{agent_id}", response_model=UserAgentResponse)
 async def get_my_agent(
     agent_id: UUID,
@@ -509,7 +495,6 @@ async def get_my_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent 不存在")
     return agent
-
 
 @router.put("/my-agents/{agent_id}", response_model=UserAgentResponse)
 async def update_agent(
@@ -528,7 +513,6 @@ async def update_agent(
         return agent
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.delete("/my-agents/{agent_id}")
 async def delete_agent(
@@ -552,7 +536,6 @@ async def delete_agent(
         raise HTTPException(status_code=404, detail="Agent 不存在")
     return {"success": True, "message": "Agent 已删除"}
 
-
 @router.patch("/my-agents/{agent_id}/weight", response_model=UserAgentResponse)
 async def update_agent_weight(
     agent_id: UUID,
@@ -571,7 +554,6 @@ async def update_agent_weight(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent 不存在")
     return agent
-
 
 # ========== 决策引擎 ==========
 
@@ -597,7 +579,6 @@ async def make_weighted_decision(
         input_data=request.input_data,
     )
     return result
-
 
 # ========== 复盘与统计 ==========
 
@@ -628,7 +609,6 @@ async def run_daily_evaluation(
         "details": histories,
     }
 
-
 @router.get("/stats", response_model=UserAgentStats)
 async def get_user_agent_stats(
     db: AsyncSession = Depends(get_db_session),
@@ -642,7 +622,6 @@ async def get_user_agent_stats(
     stats["vip_level"] = current_user.vip_level
     stats["vip_expire_at"] = current_user.vip_expire_at.isoformat() if current_user.vip_expire_at else None
     return stats
-
 
 @router.get("/my-agents/{agent_id}/history")
 async def get_agent_history(
@@ -689,7 +668,6 @@ async def get_agent_history(
         }
         for h in histories
     ]
-
 
 @router.get("/supported-models")
 async def get_supported_models(

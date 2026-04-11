@@ -296,3 +296,11 @@ class RequestLogger:
 
 # 导出简化接口
 request_logger = RequestLogger()
+
+
+def get_logger(name: str = "app"):
+    """
+    获取命名日志记录器
+    用于兼容标准 logging 风格的调用
+    """
+    return loguru_logger.bind(name=name)

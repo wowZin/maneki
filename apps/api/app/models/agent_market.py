@@ -1,3 +1,15 @@
+import uuid
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+
+from sqlalchemy import (
+    Column, Integer, String, DateTime, Numeric, ForeignKey, UUID, Text, Index, Boolean, JSON, Enum, text
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
+
 
 class AgentSubscriptionRebate(Base):
     """
@@ -152,3 +164,81 @@ class AgentOwnerStats(Base):
 
     def __repr__(self) -> str:
         return f"<AgentOwnerStats(owner={self.owner_id}, rebate={self.total_rebate_earned})>"
+
+
+# TODO: 以下模型需要完整实现，当前为存根类以满足导入需求
+
+
+class AgentTemplate(Base):
+    """Agent 模板表"""
+    __tablename__ = "agent_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentTemplateRatingStats(Base):
+    """Agent 模板评分统计表"""
+    __tablename__ = "agent_template_rating_stats"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_templates.id"))
+    avg_rating: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=Decimal("0"))
+    total_reviews: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class UserAgent(Base):
+    """用户自定义 Agent 表"""
+    __tablename__ = "user_agents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UserAgentHistory(Base):
+    """用户 Agent 历史记录表"""
+    __tablename__ = "user_agent_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    agent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user_agents.id"))
+    event: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UserAgentDecision(Base):
+    """用户 Agent 决策表"""
+    __tablename__ = "user_agent_decisions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    agent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user_agents.id"))
+    stock_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UserAgentMarketFavorite(Base):
+    """用户 Agent 市场收藏表"""
+    __tablename__ = "user_agent_market_favorites"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_templates.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AgentMarketReview(Base):
+    """Agent 市场评价表"""
+    __tablename__ = "agent_market_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_templates.id"))
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -9,7 +9,7 @@
 
 ### 1.2 架构选型
 - **架构模式**: C/S架构
-- **后端**: Python技术栈（异步高性能）
+- **后端**: Go技术栈（高并发、低延迟）
 - **前端**: React (H5) - 跨平台展示
 
 ---
@@ -44,11 +44,11 @@
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              后端层 (Python)                                 │
+│                              后端层 (Go)                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        API Gateway (FastAPI)                         │   │
+│  │                        API Gateway (Gin)                             │   │
 │  │     RESTful API / SSE推送 / 认证鉴权 / 请求路由 / 限流 / 管理后台API  │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
@@ -65,7 +65,7 @@
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                    实时数据处理层 (AsyncIO)                          │   │
+│  │                    实时数据处理层 (Goroutine)                        │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
 │  │  │  行情数据接收 │  │  实时计算引擎 │  │  信号生成器  │              │   │
 │  │  │(Akshare/Tushare) │  │  (Pandas/Numba)│  │  (规则+ML)  │              │   │
@@ -79,7 +79,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  技术栈: Python 3.11+ / FastAPI / AsyncIO / Celery / Polars / NumPy / LLM    │
+│  技术栈: Go 1.22+ / Gin / GORM / Redis / RabbitMQ / Python(算法) / LLM       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -125,11 +125,11 @@
 
 #### 3.1.2 实时计算引擎
 - **指标计算**: 实时MACD、KDJ、成交量异动、资金流向
-- **技术方案**: 
-  - Pandas/NumPy 向量化计算
-  - Numba JIT加速关键算法
+- **技术方案**:
+  - Go + Goroutine 并发计算
   - 滑动窗口增量计算减少重复运算
-- **延迟目标**: 数据处理 < 100ms
+  - 复杂算法通过 gRPC 调用 Python 服务
+- **延迟目标**: 数据处理 < 50ms
 
 ### 3.2 多Agent决策引擎
 
@@ -169,7 +169,7 @@
 访问控制流程:
 1. 前端路由守卫 (AdminRoute) 检查登录状态
 2. 检查 user.is_superuser 是否为 true
-3. 后端 API 使用 current_superuser 依赖进行二次验证
+3. 后端 API 使用 JWT Middleware 进行二次验证
 4. 非管理员访问返回 403 Forbidden
 ```
 
@@ -188,9 +188,22 @@
 
 **复盘技术方案**:
 - **数据读取**: 从 TimescaleDB 批量读取历史K线和信号记录
-- **分析引擎**: Polars（比 Pandas 快10-50倍，内存占用少6倍）
+- **分析引擎**: Go DataFrame (gota) 或调用 Python Polars 服务
 - **计算场景**: 分组聚合计算每只股票的收益表现、按Agent统计成功率、时间模式分析
 - **结果存储**: 分析结果写回数据库，用于 Agent 权重调整
+
+**混合架构设计**:
+```
+Go 核心层                      Python 算法层
+───────────                   ─────────────
+┌─────────┐                   ┌─────────────┐
+│ API服务 │───gRPC/HTTP──────→│ Agent推理   │
+│ 实时计算│                   │ 复杂算法    │
+│ 数据缓存│←──JSON/ProtoBuf───│ 数据科学    │
+└─────────┘                   └─────────────┘
+```
+- **高频路径**: 完全用 Go 实现（数据采集、计算、推送）
+- **复杂算法**: 通过 gRPC 调用 Python 服务（Agent决策、复盘分析）
 
 #### 3.4.2 Agent成长机制
 - **反馈学习**: 根据复盘结果调整Agent策略参数
@@ -205,15 +218,16 @@
 
 | 层级 | 技术 | 用途 |
 |------|------|------|
-| API框架 | FastAPI | 高性能异步API，自动文档 |
-| 异步任务 | Celery + RabbitMQ + Redis | 定时任务、后台计算（RabbitMQ做Broker，Redis做结果后端） |
-| 数据处理 | **Polars** / Pandas / NumPy / Numba | 数值计算、指标分析（复盘用Polars） |
-| Agent框架 | CrewAI / AutoGen / 自研 | 多Agent协作 |
+| API框架 | Gin | 高性能HTTP框架，中间件支持 |
+| 数据库 | GORM | ORM框架，支持PostgreSQL |
+| 异步任务 | RabbitMQ + Go Worker Pool | 消息队列 + Goroutine工作池 |
+| 数据处理 | Go + Python gRPC | Go处理高频数据，Python处理复杂算法 |
+| Agent框架 | CrewAI / AutoGen (Python服务) | 多Agent协作，通过gRPC调用 |
 | LLM集成 | OpenAI API / 本地模型 | Agent推理能力 |
 | 实时推送 | SSE (Server-Sent Events) | 决策通知推送，轻量级单向推送 |
-| ORM | SQLAlchemy 2.0 | 数据库操作 |
-| 配置管理 | Pydantic Settings | 环境配置 |
-| 日志 | Loguru | 结构化日志 |
+| 缓存 | go-redis / Redis | 缓存、Session、实时行情 |
+| 配置管理 | Viper | 环境配置管理 |
+| 日志 | Zap | 高性能结构化日志 |
 | 监控 | Prometheus + Grafana | 系统监控 |
 
 ### 4.2 前端技术栈
@@ -422,16 +436,30 @@ POST /set-featured     → 设为精选(免费用户可用)  → UPDATE is_featu
 ```
 
 #### 5.6.2 权限控制
-```python
-# 前端路由守卫
-<AdminRoute>  # 检查 is_superuser
+```typescript
+// 前端路由守卫
+<AdminRoute>  // 检查 is_superuser
   <AdminLayout>
     <Outlet />
   </AdminLayout>
 </AdminRoute>
+```
 
-# 后端权限检查
-current_superuser = Depends(get_current_superuser)
+```go
+// 后端权限检查 (Go + Gin)
+func AdminAuthMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        user := c.MustGet("user").(*models.User)
+        if !user.IsSuperuser {
+            c.AbortWithStatusJSON(403, gin.H{"error": "forbidden"})
+            return
+        }
+        c.Next()
+    }
+}
+
+// 路由注册
+admin := v1.Group("/admin", AuthMiddleware(), AdminAuthMiddleware())
 ```
 
 ---
@@ -444,9 +472,9 @@ current_superuser = Depends(get_current_superuser)
 - **数据预计算**: 盘前预加载历史指标，盘中增量更新
 
 ### 6.2 计算层面
-- **异步架构**: 全程AsyncIO，避免阻塞
-- **并行计算**: 多进程处理不同股票，多线程处理不同指标
-- **算法优化**: Numba加速关键计算路径
+- **异步架构**: 全程 Goroutine + Channel，无阻塞
+- **并行计算**: Goroutine 协程池处理不同股票和指标
+- **算法优化**: Go 内置高性能计算，复杂算法调用 Python gRPC 服务
 
 ### 6.3 推送层面
 - **HTTP SSE**: 轻量级单向推送，浏览器原生支持自动重连
@@ -495,53 +523,58 @@ maneki/                              # 项目根目录
 │   │   ├── tsconfig.node.json
 │   │   └── vite.config.ts           # Vite配置
 │   │
-│   └── api/                         # Python后端应用
-│       ├── app/
-│       │   ├── api/                 # API路由
-│       │   │   ├── v1/
-│       │   │   │   ├── stocks.py    # 股票相关API
-│       │   │   │   ├── signals.py   # 信号API
-│       │   │   │   ├── decisions.py # 决策API
-│       │   │   │   ├── replay.py    # 复盘API
-│       │   │   │   ├── agent_market.py   # Agent市场API
-│       │   │   │   ├── agent_weights.py  # Agent权重API
-│       │   │   │   ├── pricing.py   # 定价与订阅API
-│       │   │   │   └── admin.py     # 管理后台API (仅管理员)
-│       │   │   └── deps.py          # 依赖注入
-│       │   ├── core/                # 核心配置
-│       │   │   ├── config.py        # 配置管理
-│       │   │   └── events.py        # 生命周期事件
-│       │   ├── agents/              # Agent系统
-│       │   │   ├── base.py          # Agent基类
-│       │   │   ├── technical.py     # 技术分析Agent
-│       │   │   ├── fundamental.py   # 基本面Agent
-│       │   │   ├── sentiment.py     # 情绪Agent
-│       │   │   ├── capital.py       # 资金Agent
-│       │   │   ├── decision.py      # 决策Agent
-│       │   │   ├── coordinator.py   # 讨论协调器
-│       │   │   └── learning.py      # 学习优化模块
-│       │   ├── services/            # 业务逻辑
-│       │   │   ├── data_provider.py     # 多数据源服务 (Akshare/Tushare)
-│       │   │   ├── data_collector.py    # 数据采集
-│       │   │   ├── real_time_engine.py  # 实时计算
-│       │   │   ├── signal_generator.py  # 信号生成
-│       │   │   └── replay_engine.py     # 复盘引擎 (Polars)
-│       │   ├── models/              # 数据模型
-│       │   │   ├── stock.py
-│       │   │   ├── signal.py
-│       │   │   ├── decision.py
-│       │   │   └── replay.py
-│       │   ├── db/                  # 数据库
-│       │   │   ├── base.py
-│       │   │   ├── session.py
-│       │   │   └── migrations/
-│       │   └── main.py              # FastAPI应用入口
+│   └── api-go/                      # Go后端应用
+│       ├── cmd/
+│       │   └── main.go              # 应用入口
+│       ├── internal/
+│       │   ├── handler/             # HTTP处理器
+│       │   │   ├── stock.go         # 股票相关API
+│       │   │   ├── signal.go        # 信号API
+│       │   │   ├── decision.go      # 决策API
+│       │   │   ├── replay.go        # 复盘API
+│       │   │   ├── agent_market.go  # Agent市场API
+│       │   │   ├── agent_weight.go  # Agent权重API
+│       │   │   ├── pricing.go       # 定价与订阅API
+│       │   │   └── admin.go         # 管理后台API
+│       │   ├── service/             # 业务逻辑层
+│       │   │   ├── data_provider.go # 多数据源服务
+│       │   │   ├── data_collector.go# 数据采集
+│       │   │   ├── real_time.go     # 实时计算引擎
+│       │   │   ├── signal_gen.go    # 信号生成器
+│       │   │   └── replay.go        # 复盘引擎
+│       │   ├── model/               # 数据模型 (GORM)
+│       │   │   ├── stock.go
+│       │   │   ├── signal.go
+│       │   │   ├── decision.go
+│       │   │   └── user.go
+│       │   ├── middleware/          # 中间件
+│       │   │   ├── auth.go          # JWT认证
+│       │   │   ├── cors.go          # CORS
+│       │   │   ├── logger.go        # 请求日志
+│       │   │   └── rate_limit.go    # 限流
+│       │   ├── config/              # 配置管理
+│       │   │   └── config.go
+│       │   └── pkg/                 # 内部公共包
+│       │       ├── database/
+│       │       ├── redis/
+│       │       └── utils/
+│       ├── pkg/                     # 可复用公共库
+│       ├── api/                     # API契约 (protobuf/HTTP)
+│       ├── configs/                 # 配置文件
+│       │   ├── config.yaml
+│       │   └── config.prod.yaml
 │       ├── scripts/
 │       │   └── init_db.sql          # 数据库初始化脚本
-│       ├── celery_app.py            # Celery配置
-│       ├── requirements.txt         # Python依赖
-│       ├── Dockerfile
-│       └── package.json             # 脚本定义
+│       ├── go.mod
+│       ├── go.sum
+│       └── Dockerfile
+│
+│   └── algo-py/                     # Python算法服务 (可选)
+│       ├── agents/                  # Agent系统 (CrewAI)
+│       ├── services/
+│       │   └── complex_calc.py      # 复杂计算服务
+│       ├── proto/                   # gRPC proto定义
+│       └── requirements.txt
 │
 ├── packages/                        # 共享包目录
 │   ├── shared-types/                # 共享TypeScript类型
@@ -621,23 +654,49 @@ maneki/                              # 项目根目录
 
 ### 9.3 API数据获取策略
 
-```python
-# 数据获取优先级
-1. 本地缓存 (14天内日线数据)
-   └── 数据完整性 >= 50% ? 直接返回 : 异步触发同步
-   
-2. 外部数据源
-   └── 本地无数据 或 查询超过14天 或 force_refresh=true
-       └── 根据用户等级选择: Akshare (免费) / Tushare Pro (VIP)
+```go
+// 数据获取优先级
+// 1. 本地缓存 (14天内日线数据)
+//    数据完整性 >= 50% ? 直接返回 : 异步触发同步
+//
+// 2. 外部数据源
+//    本地无数据 或 查询超过14天 或 force_refresh=true
+//    根据用户等级选择: Akshare (免费) / Tushare Pro (VIP)
+
+func (s *StockService) GetKLine(ctx context.Context, code string, days int) ([]KLine, error) {
+    // 1. 先查本地缓存
+    if days <= 14 {
+        data, err := s.db.GetKLine(ctx, code, days)
+        if err == nil && len(data) >= days/2 {
+            return data, nil  // 数据完整，直接返回
+        }
+        // 异步触发同步
+        go s.syncService.SyncStockData(code)
+    }
+    // 2. 查询外部数据源
+    return s.fetchExternalData(ctx, code, days)
+}
 ```
 
 ### 9.4 定时任务调度
 
-| 任务 | 调度时间 | 说明 |
-|------|----------|------|
-| daily-incremental-sync | 15:35 | 收盘后增量同步当日数据 |
-| data-completeness-check | 每小时 | 检查数据完整性，自动补全 |
-| cleanup-old-data | 02:00 | 清理14天前的过期数据 |
+| 任务 | 调度时间 | 实现方式 | 说明 |
+|------|----------|----------|------|
+| daily-incremental-sync | 15:35 | Go Cron (robfig/cron) | 收盘后增量同步当日数据 |
+| data-completeness-check | 每小时 | Go Cron | 检查数据完整性，自动补全 |
+| cleanup-old-data | 02:00 | Go Cron | 清理14天前的过期数据 |
+
+```go
+// Go Cron 定时任务示例
+func (s *Scheduler) Start() {
+    c := cron.New()
+    // 每日15:35执行
+    c.AddFunc("35 15 * * *", s.dailySync)
+    // 每小时执行
+    c.AddFunc("0 * * * *", s.completenessCheck)
+    c.Start()
+}
+```
 
 ---
 
@@ -649,19 +708,23 @@ maneki/                              # 项目根目录
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Frontend  │  │   Backend   │  │    Celery Worker    │ │
-│  │   (Nginx)   │  │   (FastAPI) │  │   (Task Processor)  │ │
-│  │   :80/443   │  │    :8000    │  │                     │ │
+│  │   Frontend  │  │   Backend   │  │   Go Worker Pool    │ │
+│  │   (Nginx)   │  │   (Gin)     │  │   (Task Processor)  │ │
+│  │   :80/443   │  │    :8080    │  │                     │ │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘ │
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Celery    │  │    Redis    │  │    PostgreSQL       │ │
-│  │   Beat      │  │   :6379     │  │   + TimescaleDB     │ │
-│  │  (Scheduler)│  │ 缓存/结果后端│  │      :5432          │ │
+│  │   Go Cron   │  │    Redis    │  │    PostgreSQL       │ │
+│  │  (Scheduler)│  │   :6379     │  │   + TimescaleDB     │ │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘ │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │         RabbitMQ (Celery Broker + Message Queue)     │   │
+│  │         RabbitMQ (Go Worker Broker + Message Queue)  │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │         Python Algo Service (gRPC)                   │   │
+│  │    - Agent推理 / 复杂算法 / 数据科学                  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -674,9 +737,9 @@ maneki/                              # 项目根目录
 | 指标 | 目标值 | 说明 |
 |------|--------|------|
 | 数据采集延迟 | < 3秒 | Level-2行情 |
-| 指标计算延迟 | < 100ms | 单只股票全指标 |
-| 决策生成延迟 | < 500ms | 多Agent讨论决策 |
-| 前端推送延迟 | < 100ms | SSE推送 |
+| 指标计算延迟 | < 50ms | 单只股票全指标 (Go) |
+| 决策生成延迟 | < 300ms | 多Agent讨论决策 |
+| 前端推送延迟 | < 50ms | SSE推送 |
 | 系统并发 | > 1000只股票 | 同时监控 |
 | 数据存储 | 日增~1GB | 含分钟线+Tick |
 
@@ -718,5 +781,285 @@ maneki/                              # 项目根目录
 
 ---
 
-*文档版本: v1.2*
+## 14. 数据源抽象层 (Data Source Abstraction Layer)
+
+### 14.1 设计目标
+
+为了解决外部数据源不稳定、API限制、以及Go生态中缺乏Akshare官方SDK的问题，设计统一的数据源抽象层：
+
+1. **多数据源支持**: 同时支持Tushare（Go SDK）和Akshare（Python代理）
+2. **自动降级**: VIP用户使用Tushare，免费用户使用Akshare
+3. **多级缓存**: Redis + 本地数据库（14天数据）
+4. **透明切换**: 上层业务无需关心底层数据源
+
+### 14.2 架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         数据源抽象层 (DataProvider)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        统一数据接口                                  │   │
+│  │  GetKLine(ctx, user, code, days)                                    │   │
+│  │  GetRealtimeQuote(ctx, user, codes)                                 │   │
+│  │  SyncStockData(ctx, code)                                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                    ┌───────────────┼───────────────┐                        │
+│                    ▼               ▼               ▼                        │
+│  ┌─────────────────────┐ ┌─────────────────┐ ┌─────────────────────┐       │
+│  │   缓存层 (Redis)     │ │ 本地数据库       │ │   数据源选择器       │       │
+│  │   TTL: 5分钟        │ │ TimescaleDB     │ │   Source Selector   │       │
+│  │                     │ │ 保留14天         │ │                     │       │
+│  └─────────────────────┘ └─────────────────┘ └─────────────────────┘       │
+│                                                      │                      │
+│                           ┌──────────────────────────┼──────────────────┐   │
+│                           ▼                          ▼                  │   │
+│  ┌────────────────────────────────┐  ┌────────────────────────────────┐ │   │
+│  │     TushareSource (Go SDK)     │  │  AkshareProxySource (HTTP)     │ │   │
+│  │  ┌──────────────────────────┐  │  │  ┌──────────────────────────┐  │ │   │
+│  │  │  github.com/fletcherlau  │  │  │  │  Python FastAPI 代理服务  │  │ │   │
+│  │  │  /go-tushare             │  │  │  │  - stock_zh_a_hist        │  │ │   │
+│  │  │                            │  │  │  │  - stock_bid_ask_em       │  │ │   │
+│  │  │  特点:                     │  │  │  │  - stock_individual_info  │  │ │   │
+│  │  │  • 实时数据 (付费)         │  │  │  │                            │  │ │   │
+│  │  │  • 自动分页                │  │  │  │  特点:                     │  │ │   │
+│  │  │  • 指数退避重试            │  │  │  │  • 免费数据 (3秒延迟)      │  │ │   │
+│  │  └──────────────────────────┘  │  │  │  • 免费用户默认            │  │ │   │
+│  └────────────────────────────────┘  │  └──────────────────────────┘  │ │   │
+│                                      └────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 14.3 数据源选择策略
+
+| 用户类型 | VIP等级 | 优先数据源 | 降级数据源 | 数据延迟 |
+|---------|---------|-----------|-----------|---------|
+| 免费用户 | 0 | Akshare | Tushare | ~3秒 |
+| VIP用户 | 1 | Tushare | Akshare | 实时 |
+| SVIP用户 | 2 | Tushare | Akshare | 实时 |
+
+```go
+// 选择逻辑
+func (dp *DataProvider) selectSource(user *User) DataSource {
+    if user.IsVIP() || user.IsSVIP() {
+        if tushare.IsAvailable() {
+            return tushare  // VIP优先Tushare
+        }
+        return akshare    // 降级到Akshare
+    }
+    return akshare        // 免费用户默认Akshare
+}
+```
+
+### 14.4 数据流
+
+```
+用户请求 GetKLine("000001", 30)
+           │
+           ▼
+    ┌──────────────┐
+    │  1. 查Redis  │ ◄──── 命中？返回缓存数据
+    │     (5分钟)  │
+    └──────┬───────┘
+           │ 未命中
+           ▼
+    ┌──────────────┐
+    │  2. 查本地DB │ ◄──── 14天内数据完整？返回
+    │  (PostgreSQL)│
+    └──────┬───────┘
+           │ 不完整/超期
+           ▼
+    ┌──────────────┐
+    │  3. 选数据源 │ ◄──── 根据用户等级选择
+    │  (Selector)  │
+    └──────┬───────┘
+           ▼
+    ┌──────────────┐
+    │  4. 调用API  │ ◄──── Tushare/Akshare
+    │  (外部数据源) │
+    └──────┬───────┘
+           ▼
+    ┌──────────────┐
+    │  5. 异步存储 │ ◄──── 写入DB + Redis
+    │  (非阻塞)    │
+    └──────┬───────┘
+           ▼
+       返回数据
+```
+
+### 14.5 接口设计
+
+```go
+// DataSource 数据源接口
+type DataSource interface {
+    GetName() string
+    GetKLine(ctx context.Context, code string, days int) ([]KLine, error)
+    GetStockBasic(ctx context.Context, code string) (*Stock, error)
+    GetRealtimeQuote(ctx context.Context, codes []string) ([]Quote, error)
+    IsAvailable() bool
+}
+
+// DataProvider 统一数据提供者
+type DataProvider struct {
+    cfg      *Config
+    db       *gorm.DB
+    redis    *redis.Client
+    sources  map[string]DataSource
+}
+```
+
+### 14.6 Python代理服务 (Akshare)
+
+由于Akshare没有官方Go SDK，通过Python FastAPI服务提供HTTP接口：
+
+```python
+# apps/akshare-proxy/main.py
+@app.post("/api/kline")
+def get_kline(req: APIRequest):
+    df = ak.stock_zh_a_hist(
+        symbol=req.params["symbol"],
+        start_date=req.params["start_date"],
+        end_date=req.params["end_date"],
+        adjust="qfq"
+    )
+    return {"code": 0, "data": df.to_dict(orient="records")}
+```
+
+Go客户端通过HTTP调用：
+
+```go
+type AkshareProxySource struct {
+    proxyURL string  // http://localhost:8001
+}
+
+func (a *AkshareProxySource) GetKLine(ctx context.Context, code string, days int) ([]KLine, error) {
+    req := AkshareRequest{
+        APIName: "stock_zh_a_hist",
+        Params: map[string]interface{}{
+            "symbol": code,
+            ...
+        },
+    }
+    // HTTP POST to proxyURL/api/kline
+}
+```
+
+### 14.7 部署架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Docker Compose                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   api-go    │  │   Redis     │  │   PostgreSQL        │ │
+│  │   :8080     │──│   :6379     │──│   + TimescaleDB     │ │
+│  │  (Gin服务)  │  │  (缓存层)    │  │   (14天数据存储)     │ │
+│  └──────┬──────┘  └─────────────┘  └─────────────────────┘ │
+│         │                                                   │
+│         │ HTTP                                              │
+│         ▼                                                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              akshare-proxy (Python)                  │   │
+│  │         FastAPI服务 :8001                            │   │
+│  │  • 封装Akshare接口为HTTP API                          │   │
+│  │  • 免费用户数据源                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Tushare Pro API (外部)                  │   │
+│  │         https://api.tushare.pro                      │   │
+│  │  • VIP用户数据源 (Go SDK直接调用)                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 14.8 关键实现细节
+
+**缓存策略**:
+- Redis: K线数据缓存5分钟，减少重复API调用
+- 本地DB: 14天历史数据，支持离线查询
+
+**降级机制**:
+```go
+// VIP用户使用Tushare失败时，自动降级到Akshare
+if user.IsVIP() {
+    data, err = tushare.GetKLine(...)
+    if err != nil {
+        data, err = akshare.GetKLine(...)  // 降级
+    }
+}
+```
+
+**批量同步**:
+```go
+// 收盘后批量同步数据到本地DB
+func (dp *DataProvider) BatchSync(codes []string) {
+    for _, code := range codes {
+        dp.SyncStockData(ctx, code)  // 异步写入TimescaleDB
+    }
+}
+```
+
+---
+
+## 附录: 技术栈选型对比
+
+### 为什么从 Python 切换到 Go?
+
+| 维度 | Python (FastAPI) | Go (Gin) | 本项目选择 |
+|------|-----------------|----------|-----------|
+| **并发模型** | asyncio + GIL | goroutine + channel | Go 原生并发更优 |
+| **延迟** | ~100ms | ~50ms | Go 延迟更低 |
+| **内存占用** | 高 | 极低 | Go 内存效率更高 |
+| **部署** | 依赖复杂 | 单二进制文件 | Go 部署更简单 |
+| **生态** | 数据科学丰富 | 并发/云原生丰富 | 混合架构各取所长 |
+| **学习成本** | 团队熟悉 | 需要学习 | 可接受 |
+
+### 混合架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        技术栈分层                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  高频路径 (Go)                    算法路径 (Python)              │
+│  ─────────────                   ────────────────               │
+│  • HTTP API 服务                  • Agent 决策引擎              │
+│  • 实时数据采集                   • 复杂算法计算                │
+│  • 指标实时计算                   • 数据科学分析                │
+│  • SSE 推送                       • 机器学习模型                │
+│  • 数据库操作                     • 复盘统计分析                │
+│  • 缓存管理                       • LLM 推理调用                │
+│                                                                 │
+│  通信: gRPC / HTTP JSON                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Go 核心依赖
+
+```go
+// go.mod 核心依赖
+require (
+    github.com/gin-gonic/gin v1.9.1           // Web框架
+    gorm.io/gorm v1.25.9                      // ORM
+    gorm.io/driver/postgres v1.5.7            // PostgreSQL驱动
+    github.com/redis/go-redis/v9 v9.5.1       // Redis客户端
+    github.com/robfig/cron/v3 v3.0.1          // 定时任务
+    go.uber.org/zap v1.27.0                   // 日志
+    github.com/spf13/viper v1.18.2            // 配置管理
+    github.com/golang-jwt/jwt/v5 v5.2.0       // JWT认证
+)
+```
+
+---
+
+*文档版本: v1.4*
 *更新日期: 2026-04-11*
+*变更: *
+*- 后端技术栈从 Python/FastAPI 迁移至 Go/Gin*
+*- 新增数据源抽象层（支持Tushare/Akshare双数据源）*
