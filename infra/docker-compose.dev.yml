@@ -1,0 +1,113 @@
+# 股票分析智能应用 - 本地开发环境配置
+# 适用于 Mac/Windows/Linux 开发环境
+# 资源限制适配 8GB 内存的开发机
+
+version: '3.8'
+
+services:
+  # TimescaleDB - 时序数据库，用于存储行情数据和复盘记录
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: stock_timescaledb
+    environment:
+      POSTGRES_USER: stock
+      POSTGRES_PASSWORD: stock123
+      POSTGRES_DB: stock_analysis
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql
+    # 资源限制，确保不影响日常办公
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock -d stock_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis - 缓存层，用于实时数据和热点缓存
+  redis:
+    image: redis:7-alpine
+    container_name: stock_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ - 消息队列，用于异步任务和事件总线
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: stock_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: stock
+      RABBITMQ_DEFAULT_PASS: stock123
+      TZ: Asia/Shanghai
+    ports:
+      - "5672:5672"    # AMQP 协议端口
+      - "15672:15672"  # 管理界面 http://localhost:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # 可选：pgAdmin - TimescaleDB 可视化管理工具
+  # 如需使用，取消下面注释
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: stock_pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@stock.local
+  #     PGADMIN_DEFAULT_PASSWORD: admin123
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - timescaledb
+  #   restart: unless-stopped
+
+volumes:
+  timescale_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  # pgadmin_data:
+  #   driver: local
+
+# 网络配置（可选，用于自定义网络）
+# networks:
+#   default:
+#     name: stock_network

@@ -1,0 +1,17 @@
+{
+  "name": "@maneki/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "lint": "ruff check . && black --check .",
+    "lint:fix": "ruff check --fix . && black .",
+    "type-check": "mypy .",
+    "test": "pytest",
+    "test:cov": "pytest --cov=app --cov-report=html",
+    "db:migrate": "alembic upgrade head",
+    "db:generate": "alembic revision --autogenerate",
+    "clean": "rm -rf __pycache__ .pytest_cache .mypy_cache *.egg-info"
+  }
+}
