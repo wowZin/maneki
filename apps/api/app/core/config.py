@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     # 应用信息
     APP_NAME: str = "Maneki API"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
-    # 安全密钥（生产环境必须修改！）
-    SECRET_KEY: str = "your-secret-key-change-in-production-min-32-chars-long"
+    # 安全密钥（生产环境必须从环境变量读取！）
+    SECRET_KEY: str = ""  # 未设置时启动会报错
 
     # 数据库配置
     DATABASE_URL: str = "postgresql+asyncpg://stock:stock123@localhost:5432/stock_analysis"
@@ -78,6 +78,49 @@ class Settings(BaseSettings):
     # 微信开放平台（可选，用于 APP 登录）
     WECHAT_OPEN_APP_ID: str = ""
     WECHAT_OPEN_APP_SECRET: str = ""
+
+    # ========== 安全配置 ==========
+    # 登录失败锁定
+    LOGIN_MAX_ATTEMPTS: int = 5  # 最大失败次数
+    LOGIN_LOCK_DURATION: int = 900  # 锁定时间（秒）
+    IP_MAX_ATTEMPTS: int = 10  # IP 最大失败次数
+
+    # Token 配置
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 120  # Access Token 过期时间（2小时）
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # Refresh Token 过期时间（7天）
+
+    # Admin IP 白名单（逗号分隔）
+    ADMIN_IP_WHITELIST: str = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
+    # 审计日志保留天数
+    AUDIT_LOG_RETENTION_DAYS: int = 90
+
+    # ========== 数据源配置 ==========
+    # 免费数据源 (Akshare) - 默认数据源，无限制
+    AKSHARE_ENABLED: bool = True
+
+    # 付费数据源 (Tushare Pro) - VIP/SVIP 专享
+    TUSHARE_TOKEN: str = ""  # Tushare Pro Token
+    TUSHARE_ENABLED: bool = False  # 默认关闭，配置token后启用
+
+    # 数据源使用策略
+    # free: 所有用户使用 Akshare
+    # tiered: 免费用户 Akshare, VIP/SVIP 使用 Tushare Pro
+    DATA_SOURCE_STRATEGY: str = "tiered"
+
+    # ========== LLM 配置 ==========
+    # LLM 提供商: openai | aliyun | deepseek | local
+    LLM_PROVIDER: str = "aliyun"
+
+    # 阿里云 DashScope 配置
+    ALIYUN_API_KEY: str = ""  # 从环境变量读取
+    ALIYUN_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+    # 默认模型
+    LLM_MODEL: str = "qwen-turbo"
+
+    # 高级模型（用于决策/复盘）
+    LLM_MODEL_ADVANCED: str = "qwen-plus"
 
 
 # 全局配置实例

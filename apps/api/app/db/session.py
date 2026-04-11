@@ -34,6 +34,9 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
 )
 
+# 导出 async_session_maker 别名供 Celery 任务使用
+async_session_maker = AsyncSessionLocal
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

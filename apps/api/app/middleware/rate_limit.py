@@ -67,22 +67,50 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
     def _get_client_id(self, request: Request) -> str:
-        """获取客户端标识（支持代理）"""
-        # 优先从 X-Forwarded-For 获取真实 IP（如果有反向代理）
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
+        """获取客户端标识（支持代理，防伪造）"""
+        # 获取直接连接的客户端地址
+        client_host = request.client.host if request.client else "unknown"
 
-        # 其次从 X-Real-IP 获取
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
+        # 仅当客户端来自受信任的内部网络时，才使用代理头
+        # 这是为了防止客户端伪造 X-Forwarded-For 绕过限流
+        trusted_networks = [
+            "127.0.0.1", "::1",  # 本地回环
+            "10.0.0.0/8",       # 私有网络
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+        ]
 
-        # 最后使用直接连接的客户端地址
-        if request.client:
-            return request.client.host
+        is_trusted = False
+        import ipaddress
+        try:
+            client_ip = ipaddress.ip_address(client_host)
+            for network in trusted_networks:
+                if "/" in network:
+                    if client_ip in ipaddress.ip_network(network):
+                        is_trusted = True
+                        break
+                elif str(client_ip) == network:
+                    is_trusted = True
+                    break
+        except ValueError:
+            pass
 
-        return "unknown"
+        # 只有来自受信任网络的请求，才读取代理头
+        if is_trusted:
+            # 从 X-Forwarded-For 获取（取第一个，即最靠近用户的IP）
+            forwarded_for = request.headers.get("X-Forwarded-For")
+            if forwarded_for:
+                # X-Forwarded-For 格式: client, proxy1, proxy2
+                # 取第一个（客户端真实IP）
+                return forwarded_for.split(",")[0].strip()
+
+            # 其次从 X-Real-IP 获取
+            real_ip = request.headers.get("X-Real-IP")
+            if real_ip:
+                return real_ip
+
+        # 不信任代理头，使用直接连接地址
+        return client_host
 
     def _get_limit_key(self, path: str, client_id: str) -> str:
         """生成限流键"""

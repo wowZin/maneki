@@ -15,8 +15,15 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
+from app.core.security import ip_whitelist
 from app.db.session import init_db, close_db
 from app.middleware import RateLimitMiddleware, RequestLogMiddleware, limiter
+from app.middleware.security import (
+    SecurityHeadersMiddleware,
+    AdminIPWhitelistMiddleware,
+    RequestAuditMiddleware,
+    APISecurityMiddleware,
+)
 
 
 @asynccontextmanager
@@ -32,6 +39,11 @@ async def lifespan(app: FastAPI):
         print("✅ 数据库初始化完成")
     except Exception as e:
         print(f"⚠️ 数据库初始化失败: {e}")
+
+    # 初始化 IP 白名单
+    for ip_range in settings.ADMIN_IP_WHITELIST.split(","):
+        ip_whitelist.add_ip(ip_range.strip())
+    print(f"✅ Admin IP 白名单已加载: {len(ip_whitelist.whitelist)} 个网段")
 
     yield
 
@@ -50,23 +62,37 @@ app = FastAPI(
 
 # ========== API Gateway 中间件配置 ==========
 
-# 1. 请求日志中间件（最先执行，记录完整请求）
+# 0. API 安全检查中间件（最先执行）
+app.add_middleware(APISecurityMiddleware)
+
+# 1. 安全响应头中间件
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 2. 请求日志中间件（记录完整请求）
 app.add_middleware(
     RequestLogMiddleware,
     log_level=settings.LOG_LEVEL,
     slow_request_threshold=1.0,  # 超过1秒的请求标记为慢请求
 )
 
-# 2. CORS 配置
+# 3. Admin IP 白名单中间件
+app.add_middleware(AdminIPWhitelistMiddleware)
+
+# 4. 审计日志中间件
+app.add_middleware(RequestAuditMiddleware)
+
+# 5. CORS 配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-CSRF-Token"],
+    expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+    max_age=600,
 )
 
-# 3. 限流中间件
+# 6. 限流中间件
 app.add_middleware(RateLimitMiddleware)
 
 # 4. 注册 slowapi 限流器
@@ -182,7 +208,7 @@ async def gateway_status(request: Request):
 
 
 # 导入路由
-from app.api.v1 import stocks, signals, replay, auth, wechat, pricing, admin, agent_market, agent_weights
+from app.api.v1 import stocks, signals, replay, auth, wechat, pricing, admin, agent_market, agent_weights, market_data
 from datetime import datetime
 
 # 注册认证路由
@@ -198,6 +224,9 @@ app.include_router(pricing.router, prefix="/api/v1/pricing", tags=["pricing"])
 app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["stocks"])
 app.include_router(signals.router, prefix="/api/v1/signals", tags=["signals"])
 app.include_router(replay.router, prefix="/api/v1/replay", tags=["replay"])
+
+# 注册行情数据路由
+app.include_router(market_data.router, prefix="/api/v1/market", tags=["market-data"])
 
 # 注册 Agent 市场路由
 app.include_router(agent_market.router, prefix="/api/v1/agents", tags=["agents"])

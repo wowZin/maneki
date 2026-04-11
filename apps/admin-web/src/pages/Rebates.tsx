@@ -11,13 +11,11 @@ import {
   Space,
   Tag,
   Select,
-  DatePicker,
   message,
   Row,
   Col,
   Statistic,
   Timeline,
-  Badge,
 } from 'antd'
 import {
   SearchOutlined,
@@ -29,10 +27,9 @@ import {
   RobotOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
-import { adminApi } from '../../services/admin'
+import { adminApi } from '@/services/admin'
 import dayjs from 'dayjs'
 
-const { RangePicker } = DatePicker
 
 interface Rebate {
   id: number

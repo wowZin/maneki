@@ -12,7 +12,7 @@ import {
   RiseOutlined,
   FallOutlined,
 } from '@ant-design/icons'
-import { adminApi } from '../../services/admin'
+import { adminApi } from '@/services/admin'
 
 const Overview: React.FC = () => {
   const [loading, setLoading] = useState(true)

@@ -26,11 +26,10 @@ import {
   SearchOutlined,
   EditOutlined,
   StarOutlined,
-  EyeOutlined,
   CheckCircleOutlined,
   StopOutlined,
 } from '@ant-design/icons'
-import { adminApi } from '../../services/admin'
+import { adminApi } from '@/services/admin'
 import dayjs from 'dayjs'
 
 interface AgentTemplate {

@@ -24,7 +24,7 @@ import {
 import { useAuthStore } from '../../stores/auth'
 import { authApi } from '../../services/api'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface RegisterFormData {
   username: string
@@ -127,7 +127,7 @@ const Register: React.FC = () => {
       <div className="auth-grid" />
 
       <div className="auth-card">
-        <!-- 返回按钮 -->
+        {/* 返回按钮 */}
         <Link
           to="/login"
           style={{

@@ -57,10 +57,30 @@ async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
 
 
-def get_jwt_strategy() -> JWTStrategy:
-    """JWT策略"""
-    return JWTStrategy(
-        secret=settings.SECRET_KEY if hasattr(settings, 'SECRET_KEY') else "your-secret-key-change-in-production",
+async def validate_token_not_blacklisted(token: str) -> bool:
+    """验证Token是否在黑名单中"""
+    from app.core.security import token_blacklist
+    return not await token_blacklist.is_blacklisted(token)
+
+
+class CustomJWTStrategy(JWTStrategy):
+    """自定义JWT策略，增加黑名单检查"""
+
+    async def read_token(self, token: str, user_manager) -> dict:
+        """读取Token并检查黑名单"""
+        # 先检查黑名单
+        if await token_blacklist.is_blacklisted(token):
+            return None
+        return await super().read_token(token, user_manager)
+
+
+def get_jwt_strategy() -> CustomJWTStrategy:
+    """JWT策略（带黑名单检查）"""
+    secret = settings.SECRET_KEY
+    if not secret:
+        raise ValueError("SECRET_KEY must be set in production")
+    return CustomJWTStrategy(
+        secret=secret,
         lifetime_seconds=3600 * 24 * 7,  # 7天有效期
     )
 

@@ -52,6 +52,9 @@ pycryptodome==3.23.0
 # Aliyun (Optional - for direct SLS write)
 # aliyun-log-python-sdk==0.9.0  # 如需直接写入SLS，取消注释
 
+# JWT Token
+python-jose[cryptography]==3.3.0
+
 # Payment Integration (TODO: 支付对接时取消注释)
 # python-alipay-sdk==3.3.0      # 支付宝 SDK
 # wechatpayv3==1.2.4            # 微信支付 V3

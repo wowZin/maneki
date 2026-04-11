@@ -30,10 +30,9 @@ import {
   CrownOutlined,
   UserDeleteOutlined,
 } from '@ant-design/icons'
-import { adminApi } from '../../services/admin'
+import { adminApi } from '@/services/admin'
 import dayjs from 'dayjs'
 
-const { RangePicker } = DatePicker
 
 interface User {
   id: string

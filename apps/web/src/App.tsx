@@ -10,22 +10,13 @@ import zhCN from 'antd/locale/zh_CN'
 
 // 布局
 import Layout from './components/Layout'
-import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
-import AdminRoute from './components/AdminRoute'
 
 // 页面
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Pricing from './pages/Pricing'
-
-// 管理后台页面
-import AdminOverview from './pages/Admin/Overview'
-import AdminUsers from './pages/Admin/Users'
-import AdminAgents from './pages/Admin/Agents'
-import AdminRebates from './pages/Admin/Rebates'
-import AdminSettings from './pages/Admin/Settings'
 
 // Ant Design 主题配置 - 科技蓝青色调
 const theme = {
@@ -67,23 +58,6 @@ const App: React.FC = () => {
             <Route path="replay" element={<div>回测分析（开发中）</div>} />
             <Route path="profile" element={<div>个人中心（开发中）</div>} />
             <Route path="settings" element={<div>设置（开发中）</div>} />
-          </Route>
-
-          {/* 管理后台路由 */}
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminLayout />
-              </AdminRoute>
-            }
-          >
-            <Route index element={<AdminOverview />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="agents" element={<AdminAgents />} />
-            <Route path="rebates" element={<AdminRebates />} />
-            <Route path="analytics" element={<div>数据统计（开发中）</div>} />
-            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* 404 重定向 */}

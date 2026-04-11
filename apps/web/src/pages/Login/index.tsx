@@ -9,13 +9,10 @@ import {
   Form,
   Input,
   Button,
-  Card,
   Typography,
   Alert,
   Space,
-  Divider,
   message,
-  Spin,
 } from 'antd'
 import {
   UserOutlined,
@@ -28,7 +25,7 @@ import { useAuthStore } from '../../stores/auth'
 import { authApi } from '../../services/api'
 import { useWechatAuth } from '../../hooks/useWechatAuth'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface LoginFormData {
   username: string

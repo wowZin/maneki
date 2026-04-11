@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react'
 import {
   Card,
   Form,
-  Input,
   InputNumber,
   Switch,
   Button,
@@ -25,7 +24,7 @@ import {
   SettingOutlined,
   BellOutlined,
 } from '@ant-design/icons'
-import { adminApi } from '../../services/admin'
+import { adminApi } from '@/services/admin'
 
 const { TabPane } = Tabs
 
@@ -310,7 +309,6 @@ const Settings: React.FC = () => {
         form={form}
         layout="vertical"
         onFinish={handleSave}
-        loading={loading}
       >
         <Card
           extra={

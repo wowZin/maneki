@@ -22,7 +22,6 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
-  MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/auth'

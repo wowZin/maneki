@@ -12,11 +12,11 @@ import {
   FallOutlined,
   CrownOutlined,
   ThunderboltOutlined,
-  TrendingUpOutlined,
   BarChartOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 // 统计卡片组件
 interface StatCardProps {
@@ -128,7 +128,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </Space>
             </Col>
-            <Col xs={24} md={8} style={{ textAlign: 'right', marginTop: { xs: 16, md: 0 } }}>
+            <Col xs={24} md={8} style={{ textAlign: 'right', marginTop: 16 }}>
               <Button
                 className="promo-button"
                 icon={<ThunderboltOutlined />}
@@ -183,7 +183,7 @@ const Dashboard: React.FC = () => {
           <Card
             title={
               <Space>
-                <TrendingUpOutlined style={{ color: '#10b981' }} />
+                <LineChartOutlined style={{ color: '#10b981' }} />
                 <span>热门股票</span>
               </Space>
             }
