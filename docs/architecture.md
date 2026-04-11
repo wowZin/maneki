@@ -523,58 +523,63 @@ maneki/                              # 项目根目录
 │   │   ├── tsconfig.node.json
 │   │   └── vite.config.ts           # Vite配置
 │   │
-│   └── api-go/                      # Go后端应用
-│       ├── cmd/
-│       │   └── main.go              # 应用入口
-│       ├── internal/
-│       │   ├── handler/             # HTTP处理器
-│       │   │   ├── stock.go         # 股票相关API
-│       │   │   ├── signal.go        # 信号API
-│       │   │   ├── decision.go      # 决策API
-│       │   │   ├── replay.go        # 复盘API
-│       │   │   ├── agent_market.go  # Agent市场API
-│       │   │   ├── agent_weight.go  # Agent权重API
-│       │   │   ├── pricing.go       # 定价与订阅API
-│       │   │   └── admin.go         # 管理后台API
-│       │   ├── service/             # 业务逻辑层
-│       │   │   ├── data_provider.go # 多数据源服务
-│       │   │   ├── data_collector.go# 数据采集
-│       │   │   ├── real_time.go     # 实时计算引擎
-│       │   │   ├── signal_gen.go    # 信号生成器
-│       │   │   └── replay.go        # 复盘引擎
-│       │   ├── model/               # 数据模型 (GORM)
-│       │   │   ├── stock.go
-│       │   │   ├── signal.go
-│       │   │   ├── decision.go
-│       │   │   └── user.go
-│       │   ├── middleware/          # 中间件
-│       │   │   ├── auth.go          # JWT认证
-│       │   │   ├── cors.go          # CORS
-│       │   │   ├── logger.go        # 请求日志
-│       │   │   └── rate_limit.go    # 限流
-│       │   ├── config/              # 配置管理
-│       │   │   └── config.go
-│       │   └── pkg/                 # 内部公共包
-│       │       ├── database/
-│       │       ├── redis/
-│       │       └── utils/
-│       ├── pkg/                     # 可复用公共库
-│       ├── api/                     # API契约 (protobuf/HTTP)
-│       ├── configs/                 # 配置文件
-│       │   ├── config.yaml
-│       │   └── config.prod.yaml
-│       ├── scripts/
-│       │   └── init_db.sql          # 数据库初始化脚本
-│       ├── go.mod
-│       ├── go.sum
-│       └── Dockerfile
-│
-│   └── algo-py/                     # Python算法服务 (可选)
-│       ├── agents/                  # Agent系统 (CrewAI)
-│       ├── services/
-│       │   └── complex_calc.py      # 复杂计算服务
-│       ├── proto/                   # gRPC proto定义
-│       └── requirements.txt
+│   ├── api/                         # Go后端API（主服务）
+│   │   ├── cmd/
+│   │   │   └── main.go              # 应用入口
+│   │   ├── internal/
+│   │   │   ├── handler/             # HTTP处理器
+│   │   │   │   ├── auth.go          # 认证相关
+│   │   │   │   ├── agent.go         # Agent市场API
+│   │   │   │   ├── stock.go         # 股票相关API
+│   │   │   │   └── admin.go         # 管理后台API
+│   │   │   ├── service/             # 业务逻辑层
+│   │   │   │   ├── data_provider.go # 数据源抽象层
+│   │   │   │   ├── data_collector.go# 数据采集
+│   │   │   │   ├── signal_gen.go    # 信号生成器
+│   │   │   │   └── replay.go        # 复盘引擎
+│   │   │   ├── model/               # 数据模型 (GORM)
+│   │   │   │   ├── user.go
+│   │   │   │   ├── agent.go
+│   │   │   │   ├── stock.go
+│   │   │   │   └── signal.go
+│   │   │   ├── repository/          # 数据访问层
+│   │   │   │   ├── user.go
+│   │   │   │   └── agent.go
+│   │   │   ├── middleware/          # 中间件
+│   │   │   │   ├── auth.go          # JWT认证
+│   │   │   │   ├── cors.go          # CORS
+│   │   │   │   ├── logger.go        # 请求日志
+│   │   │   │   └── security.go      # 安全/审计
+│   │   │   └── config/              # 配置管理
+│   │   │       └── config.go
+│   │   ├── go.mod
+│   │   ├── go.sum
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── README.md
+│   │
+│   ├── data-service/                # Python数据服务
+│   │   ├── main.py                  # FastAPI入口
+│   │   ├── config.py                # 配置管理
+│   │   ├── requirements.txt         # Python依赖
+│   │   ├── .env.example             # 环境变量示例
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   │
+│   └── web-admin/                   # React管理后台
+│       ├── src/
+│       │   ├── pages/
+│       │   │   ├── Overview.tsx     # 概览
+│       │   │   ├── Users.tsx        # 用户管理
+│       │   │   ├── Agents.tsx       # Agent管理
+│       │   │   ├── Rebates.tsx      # 返佣管理
+│       │   │   └── Settings.tsx     # 系统配置
+│       │   ├── components/
+│       │   ├── stores/
+│       │   └── services/
+│       ├── package.json
+│       ├── tsconfig.json
+│       └── vite.config.ts
 │
 ├── packages/                        # 共享包目录
 │   ├── shared-types/                # 共享TypeScript类型
@@ -787,7 +792,7 @@ func (s *Scheduler) Start() {
 
 为了解决外部数据源不稳定、API限制、以及Go生态中缺乏Akshare官方SDK的问题，设计统一的数据源抽象层：
 
-1. **多数据源支持**: 同时支持Tushare（Go SDK）和Akshare（Python代理）
+1. **多数据源支持**: 统一通过Python数据服务获取，支持Tushare Pro和Akshare双数据源
 2. **自动降级**: VIP用户使用Tushare，免费用户使用Akshare
 3. **多级缓存**: Redis + 本地数据库（14天数据）
 4. **透明切换**: 上层业务无需关心底层数据源
@@ -813,22 +818,26 @@ func (s *Scheduler) Start() {
 │  │   TTL: 5分钟        │ │ TimescaleDB     │ │   Source Selector   │       │
 │  │                     │ │ 保留14天         │ │                     │       │
 │  └─────────────────────┘ └─────────────────┘ └─────────────────────┘       │
-│                                                      │                      │
-│                           ┌──────────────────────────┼──────────────────┐   │
-│                           ▼                          ▼                  │   │
-│  ┌────────────────────────────────┐  ┌────────────────────────────────┐ │   │
-│  │     TushareSource (Go SDK)     │  │  AkshareProxySource (HTTP)     │ │   │
-│  │  ┌──────────────────────────┐  │  │  ┌──────────────────────────┐  │ │   │
-│  │  │  github.com/fletcherlau  │  │  │  │  Python FastAPI 代理服务  │  │ │   │
-│  │  │  /go-tushare             │  │  │  │  - stock_zh_a_hist        │  │ │   │
-│  │  │                            │  │  │  │  - stock_bid_ask_em       │  │ │   │
-│  │  │  特点:                     │  │  │  │  - stock_individual_info  │  │ │   │
-│  │  │  • 实时数据 (付费)         │  │  │  │                            │  │ │   │
-│  │  │  • 自动分页                │  │  │  │  特点:                     │  │ │   │
-│  │  │  • 指数退避重试            │  │  │  │  • 免费数据 (3秒延迟)      │  │ │   │
-│  │  └──────────────────────────┘  │  │  │  • 免费用户默认            │  │ │   │
-│  └────────────────────────────────┘  │  └──────────────────────────┘  │ │   │
-│                                      └────────────────────────────────┘   │
+│                                    │                                      │
+│                                    ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                    data-service (Python/FastAPI)                     │ │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │ │
+│  │  │  统一数据服务                                                    │ │ │
+│  │  │  • 支持 Tushare Pro (付费/实时)                                  │ │ │
+│  │  │  • 支持 Akshare (免费/3秒延迟)                                   │ │ │
+│  │  │  • 自动根据用户等级选择数据源                                     │ │ │
+│  │  │  • 统一数据格式返回                                              │ │ │
+│  │  └────────────────────────────────────────────────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                      │
+│                 ┌──────────────────┴──────────────────┐                   │
+│                 ▼                                      ▼                   │
+│  ┌──────────────────────────┐      ┌──────────────────────────┐           │
+│  │     Tushare Pro          │      │      Akshare             │           │
+│  │  • 实时数据 (付费)        │      │  • 免费数据 (3秒延迟)     │           │
+│  │  • 数据质量高            │      │  • 无需Token             │           │
+│  └──────────────────────────┘      └──────────────────────────┘           │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -910,39 +919,62 @@ type DataProvider struct {
 }
 ```
 
-### 14.6 Python代理服务 (Akshare)
+### 14.6 数据服务 (data-service)
 
-由于Akshare没有官方Go SDK，通过Python FastAPI服务提供HTTP接口：
+所有数据统一通过 Python FastAPI 服务获取，支持 Tushare Pro 和 Akshare 双数据源：
+
+**服务特点：**
+- 统一封装 Tushare Pro 和 Akshare
+- 根据请求参数自动选择数据源
+- 统一的数据格式返回
+- 支持后续添加离线分析功能
 
 ```python
-# apps/akshare-proxy/main.py
+# apps/data-service/main.py
+
+# 初始化 Tushare Pro（可选）
+if settings.TUSHARE_TOKEN:
+    ts.set_token(settings.TUSHARE_TOKEN)
+    tushare_pro = ts.pro_api()
+
+# 统一K线接口
 @app.post("/api/kline")
-def get_kline(req: APIRequest):
-    df = ak.stock_zh_a_hist(
-        symbol=req.params["symbol"],
-        start_date=req.params["start_date"],
-        end_date=req.params["end_date"],
-        adjust="qfq"
-    )
-    return {"code": 0, "data": df.to_dict(orient="records")}
+def get_kline(req: KLineRequest):
+    source = get_data_source(req.source)  # auto/tushare/akshare
+    
+    if source == "tushare" and tushare_pro:
+        # 使用 Tushare Pro
+        df = tushare_pro.daily(ts_code=ts_code, ...)
+    else:
+        # 使用 Akshare
+        df = ak.stock_zh_a_hist(symbol=code, ...)
+    
+    # 统一格式返回
+    return {"code": 0, "data": format_kline_data(df, source), "source": source}
 ```
 
-Go客户端通过HTTP调用：
+Go API 通过 HTTP 调用数据服务：
 
 ```go
-type AkshareProxySource struct {
-    proxyURL string  // http://localhost:8001
+type DataProvider struct {
+    dataServiceURL string  // http://localhost:8001
 }
 
-func (a *AkshareProxySource) GetKLine(ctx context.Context, code string, days int) ([]KLine, error) {
-    req := AkshareRequest{
-        APIName: "stock_zh_a_hist",
-        Params: map[string]interface{}{
-            "symbol": code,
-            ...
-        },
+func (dp *DataProvider) GetKLine(ctx context.Context, user *User, code string, days int) ([]KLine, error) {
+    // 1. 先查缓存
+    if data, err := dp.getFromCache(cacheKey); err == nil {
+        return data, nil
     }
-    // HTTP POST to proxyURL/api/kline
+    
+    // 2. 通过 data-service 获取
+    req := DataServiceRequest{
+        Code:   code,
+        Days:   days,
+        Source: dp.selectSource(user),  // tushare/akshare
+    }
+    
+    resp, err := dp.httpClient.Post(dp.dataServiceURL+"/api/kline", ...)
+    // 解析响应并缓存
 }
 ```
 
@@ -954,18 +986,19 @@ func (a *AkshareProxySource) GetKLine(ctx context.Context, code string, days int
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   api-go    │  │   Redis     │  │   PostgreSQL        │ │
+│  │     api     │  │   Redis     │  │   PostgreSQL        │ │
 │  │   :8080     │──│   :6379     │──│   + TimescaleDB     │ │
-│  │  (Gin服务)  │  │  (缓存层)    │  │   (14天数据存储)     │ │
+│  │  (Go/Gin)   │  │  (缓存层)    │  │   (14天数据存储)     │ │
 │  └──────┬──────┘  └─────────────┘  └─────────────────────┘ │
 │         │                                                   │
 │         │ HTTP                                              │
 │         ▼                                                   │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              akshare-proxy (Python)                  │   │
+│  │              data-service (Python)                  │   │
 │  │         FastAPI服务 :8001                            │   │
-│  │  • 封装Akshare接口为HTTP API                          │   │
-│  │  • 免费用户数据源                                     │   │
+│  │  • 统一封装 Tushare Pro & Akshare                    │   │
+│  │  • 根据用户等级自动选择数据源                         │   │
+│  │  • 支持后续离线分析功能                               │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -1058,8 +1091,9 @@ require (
 
 ---
 
-*文档版本: v1.4*
+*文档版本: v1.5*
 *更新日期: 2026-04-11*
 *变更: *
 *- 后端技术栈从 Python/FastAPI 迁移至 Go/Gin*
-*- 新增数据源抽象层（支持Tushare/Akshare双数据源）*
+*- 新增数据源抽象层（统一通过 data-service 获取Tushare/Akshare数据）*
+*- 目录结构调整: api-go→api, akshare-proxy→data-service, admin-web→web-admin*
