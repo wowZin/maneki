@@ -11,30 +11,43 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from app.core.config import settings
+from app.db.session import init_db, close_db
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     print("🚀 Maneki API 启动中...")
-    # TODO: 初始化数据库连接、Redis连接等
+    print(f"📊 配置: 监控{settings.MONITOR_STOCK_COUNT}只股票, 保留{settings.DATA_RETENTION_DAYS}天")
+
+    # 初始化数据库
+    try:
+        await init_db()
+        print("✅ 数据库初始化完成")
+    except Exception as e:
+        print(f"⚠️ 数据库初始化失败: {e}")
+
     yield
+
     # 关闭时执行
     print("👋 Maneki API 关闭中...")
-    # TODO: 关闭连接池等
+    await close_db()
 
 
 app = FastAPI(
-    title="Maneki API",
+    title=settings.APP_NAME,
     description="股票分析智能应用 - 基于多Agent决策的实时涨停预测系统",
-    version="1.0.0",
+    version=settings.APP_VERSION,
     lifespan=lifespan,
+    debug=settings.DEBUG,
 )
 
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # 前端开发服务器
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,96 +58,60 @@ app.add_middleware(
 async def root():
     """根路径"""
     return {
-        "name": "Maneki API",
-        "version": "1.0.0",
-        "status": "running"
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "running",
+        "features": [
+            "real-time-stock-monitoring",
+            "multi-agent-decision",
+            "signal-generation",
+            "replay-analysis",
+        ]
     }
 
 
 @app.get("/health")
 async def health_check():
     """健康检查"""
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+    }
 
 
-# ========== SSE 决策通知推送端点 ==========
+# 导入路由
+from app.api.v1 import stocks, signals, replay
+from datetime import datetime
 
-# 模拟信号队列（实际项目中应使用 Redis/RabbitMQ）
-signal_queue = asyncio.Queue()
-
-
-async def signal_generator():
-    """
-    SSE 信号生成器
-    监听信号队列，有新信号时推送给客户端
-    """
-    while True:
-        try:
-            # 从队列获取信号（非阻塞，5秒超时发送心跳）
-            signal = await asyncio.wait_for(signal_queue.get(), timeout=5.0)
-
-            # SSE 格式：event: <event_name>\ndata: <json_data>\n\n
-            yield f"event: signal\ndata: {json.dumps(signal, ensure_ascii=False)}\n\n"
-
-        except asyncio.TimeoutError:
-            # 发送心跳保持连接
-            yield f"event: ping\ndata: {{}}\n\n"
+# 注册路由
+app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["stocks"])
+app.include_router(signals.router, prefix="/api/v1/signals", tags=["signals"])
+app.include_router(replay.router, prefix="/api/v1/replay", tags=["replay"])
 
 
-@app.get("/sse/signals")
+@app.get("/api/v1/sse/signals")
 async def sse_signals(request: Request):
     """
-    SSE 决策信号推送端点
-
-    前端使用 EventSource 连接此端点接收实时决策通知：
-
-    ```javascript
-    const source = new EventSource('/sse/signals');
-    source.addEventListener('signal', (e) => {
-        const signal = JSON.parse(e.data);
-        console.log('收到信号:', signal);
-    });
-    ```
+    SSE 决策信号推送端点（备用，也可以在signals模块中定义）
     """
+    from app.api.v1.signals import signal_generator_sse
+
     return StreamingResponse(
-        signal_generator(),
+        signal_generator_sse(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # 禁用 Nginx 缓冲
+            "X-Accel-Buffering": "no",
         }
     )
 
 
-# TODO: 后续从 Agent 决策器推送信号到队列
-async def push_signal_example():
-    """示例：模拟推送信号（实际应由 Agent 系统调用）"""
-    await asyncio.sleep(5)  # 5秒后推送测试信号
-    await signal_queue.put({
-        "id": "signal_001",
-        "type": "buy",
-        "code": "000001",
-        "confidence": 0.85,
-        "time": "2024-04-11T10:30:00",
-        "reason": "技术指标突破"
-    })
-
-
-# 启动时运行示例（仅用于测试）
-# @app.on_event("startup")
-# async def startup_event():
-#     asyncio.create_task(push_signal_example())
-
-
-# TODO: 后续添加路由
-# from app.api.v1 import stocks, signals, decisions, replay
-# app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["stocks"])
-# app.include_router(signals.router, prefix="/api/v1/signals", tags=["signals"])
-# app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["decisions"])
-# app.include_router(replay.router, prefix="/api/v1/replay", tags=["replay"])
-
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
