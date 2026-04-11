@@ -14,6 +14,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.middleware import limiter
 from app.models.signal import Signal
 from app.schemas.signal import SignalResponse, SignalListResponse
 from app.services.real_time_engine import real_time_engine
@@ -99,11 +100,13 @@ async def signal_generator_sse():
 
 
 @router.get("/sse/stream")
+@limiter.limit("30/minute")
 async def sse_signals(request: Request):
     """
     SSE 决策信号推送端点
 
     前端使用 EventSource 连接此端点接收实时决策通知
+    限流: 30次/分钟（防止过多并发连接）
     """
     return StreamingResponse(
         signal_generator_sse(),
@@ -124,12 +127,15 @@ async def push_signal_to_queue(signal_data: dict):
 
 
 @router.post("/analyze/{code}")
+@limiter.limit("30/minute")
 async def analyze_stock(
+    request: Request,  # slowapi 需要 request 参数
     code: str,
     db: AsyncSession = Depends(get_db),
 ):
     """
     手动触发单只股票分析（测试用）
+    限流: 30次/分钟（资源密集型操作）
     """
     # 获取实时行情
     quotes = await data_collector.get_realtime_quotes([code])

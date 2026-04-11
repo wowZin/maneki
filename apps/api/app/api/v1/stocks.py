@@ -5,11 +5,12 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.middleware import limiter
 from app.models.stock import Stock
 from app.models.kline import KLine1Min, KLine1Day
 from app.schemas.stock import StockResponse, StockListResponse
@@ -118,12 +119,15 @@ async def get_kline_day(
 
 
 @router.post("/sync")
+@limiter.limit("10/hour")
 async def sync_stocks(
+    request: Request,  # slowapi 需要 request 参数
     db: AsyncSession = Depends(get_db),
 ):
     """
     同步股票列表（从数据源）
     管理接口，需要权限验证（TODO）
+    限流: 10次/小时（资源密集型操作）
     """
     await data_collector.sync_stock_list()
     return {"message": "股票列表同步成功"}

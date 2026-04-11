@@ -5,11 +5,12 @@
 from datetime import date, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.middleware import limiter
 from app.models.replay import ReplayResult, AgentLearning
 from app.schemas.replay import (
     ReplayResultResponse,
@@ -113,11 +114,14 @@ async def get_agent_learning(
 
 
 @router.post("/run")
+@limiter.limit("10/hour")
 async def run_replay(
+    request: Request,
     trade_date: Optional[date] = Query(None, description="交易日期，默认昨天"),
 ):
     """
     手动触发复盘
+    限流: 10次/小时（资源密集型操作）
     """
     try:
         report = await replay_engine.run_daily_replay(trade_date)

@@ -74,6 +74,7 @@ async def init_db():
     创建所有表（用于开发环境）
     """
     from app.db.base import Base
+    from app.models import User  # 导入 User 模型以注册到 metadata
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -7,6 +7,7 @@ import asyncio
 from app.db.session import engine
 from app.db.base import Base
 from app.models import (
+    User,
     Stock,
     KLine1Min,
     KLine5Min,

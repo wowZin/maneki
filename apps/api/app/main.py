@@ -6,13 +6,17 @@ Maneki API - 股票分析智能应用后端
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
 from app.db.session import init_db, close_db
+from app.middleware import RateLimitMiddleware, RequestLogMiddleware, limiter
 
 
 @asynccontextmanager
@@ -44,7 +48,16 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# CORS 配置
+# ========== API Gateway 中间件配置 ==========
+
+# 1. 请求日志中间件（最先执行，记录完整请求）
+app.add_middleware(
+    RequestLogMiddleware,
+    log_level=settings.LOG_LEVEL,
+    slow_request_threshold=1.0,  # 超过1秒的请求标记为慢请求
+)
+
+# 2. CORS 配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -53,9 +66,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 3. 限流中间件
+app.add_middleware(RateLimitMiddleware)
+
+# 4. 注册 slowapi 限流器
+app.state.limiter = limiter
+
+
+# 自定义限流错误处理
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """限流超限自定义响应"""
+    retry_after = int(exc.detail.split(" ").pop()) if hasattr(exc, "detail") else 60
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate limit exceeded",
+            "message": "请求过于频繁，请稍后再试",
+            "retry_after": retry_after,
+            "limit": exc.limit if hasattr(exc, "limit") else "unknown",
+        },
+        headers={
+            "Retry-After": str(retry_after),
+            "X-RateLimit-Limit": str(exc.limit) if hasattr(exc, "limit") else "",
+            "X-RateLimit-Reset": str(retry_after),
+        },
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 
 @app.get("/")
-async def root():
+@limiter.limit("10/minute")
+async def root(request: Request):
     """根路径"""
     return {
         "name": settings.APP_NAME,
@@ -66,7 +110,12 @@ async def root():
             "multi-agent-decision",
             "signal-generation",
             "replay-analysis",
-        ]
+        ],
+        "gateway": {
+            "rate_limiting": "enabled",
+            "request_logging": "enabled",
+            "authentication": "enabled",
+        }
     }
 
 
@@ -76,17 +125,86 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
+        "gateway": {
+            "rate_limiting": "enabled",
+            "request_logging": "enabled",
+            "authentication": "enabled",
+        },
+    }
+
+
+@app.get("/gateway/status")
+@limiter.limit("30/minute")
+async def gateway_status(request: Request):
+    """
+    API Gateway 状态查询
+    返回网关配置和限流状态
+    """
+    return {
+        "gateway": "Maneki API Gateway",
+        "version": settings.APP_VERSION,
+        "features": {
+            "rate_limiting": {
+                "enabled": True,
+                "default": "100/minute",
+                "storage": "redis",
+                "strategy": "fixed-window",
+            },
+            "request_logging": {
+                "enabled": True,
+                "level": settings.LOG_LEVEL,
+                "slow_threshold": "1.0s",
+            },
+            "authentication": {
+                "enabled": True,
+                "methods": ["jwt", "wechat_mp", "wechat_mini"],
+            },
+            "cors": {
+                "enabled": True,
+                "origins": settings.CORS_ORIGINS,
+            },
+        },
+        "endpoints": {
+            "public": ["/", "/health", "/gateway/status", "/api/v1/auth/login", "/api/v1/auth/register"],
+            "protected": ["/api/v1/stocks/*", "/api/v1/signals/*", "/api/v1/replay/*"],
+            "sse": ["/api/v1/signals/sse/stream", "/api/v1/sse/signals"],
+        },
+        "rate_limits": {
+            "/api/v1/auth/jwt/login": "5/minute",
+            "/api/v1/wechat/*": "5/minute",
+            "/api/v1/signals/analyze/*": "30/minute",
+            "/api/v1/signals/sse/stream": "30/minute",
+            "/api/v1/replay/run": "10/hour",
+            "/api/v1/stocks/sync": "10/hour",
+            "default": "100/minute",
+        },
     }
 
 
 # 导入路由
-from app.api.v1 import stocks, signals, replay
+from app.api.v1 import stocks, signals, replay, auth, wechat, pricing, admin, agent_market, agent_weights
 from datetime import datetime
 
-# 注册路由
+# 注册认证路由
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+
+# 注册微信认证路由
+app.include_router(wechat.router, prefix="/api/v1/wechat", tags=["wechat"])
+
+# 注册定价路由
+app.include_router(pricing.router, prefix="/api/v1/pricing", tags=["pricing"])
+
+# 注册业务路由
 app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["stocks"])
 app.include_router(signals.router, prefix="/api/v1/signals", tags=["signals"])
 app.include_router(replay.router, prefix="/api/v1/replay", tags=["replay"])
+
+# 注册 Agent 市场路由
+app.include_router(agent_market.router, prefix="/api/v1/agents", tags=["agents"])
+app.include_router(agent_weights.router, prefix="/api/v1/agent-weights", tags=["agent-weights"])
+
+# 注册管理后台路由（仅管理员可访问）
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 
 
 @app.get("/api/v1/sse/signals")
