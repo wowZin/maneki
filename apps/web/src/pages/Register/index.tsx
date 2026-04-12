@@ -1,0 +1,317 @@
+/**
+ * 注册页面 - 科技感主题
+ */
+
+import React, { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import {
+  Form,
+  Input,
+  Button,
+  Typography,
+  Alert,
+  Space,
+  message,
+} from 'antd'
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  StockOutlined,
+  CheckCircleOutlined,
+  ArrowLeftOutlined,
+} from '@ant-design/icons'
+import { useAuthStore } from '../../stores/auth'
+import { authApi } from '../../services/api'
+
+const { Text } = Typography
+
+interface RegisterFormData {
+  username: string
+  email: string
+  password: string
+  confirmPassword: string
+  full_name?: string
+}
+
+const Register: React.FC = () => {
+  const navigate = useNavigate()
+  const [form] = Form.useForm()
+  const { isAuthenticated, setError, error, clearError } = useAuthStore()
+  const [submitting, setSubmitting] = useState(false)
+  const [registered, setRegistered] = useState(false)
+
+  // 已登录则跳转到首页
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/')
+    }
+  }, [isAuthenticated, navigate])
+
+  const handleSubmit = async (values: RegisterFormData) => {
+    setSubmitting(true)
+    clearError()
+
+    try {
+      await authApi.register({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        full_name: values.full_name,
+      })
+
+      message.success('注册成功！')
+      setRegistered(true)
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.detail || '注册失败，请检查输入信息'
+      setError(errorMsg)
+      message.error(errorMsg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // 注册成功后的提示页面
+  if (registered) {
+    return (
+      <div className="auth-container">
+        <div className="auth-bg-pattern" />
+        <div className="auth-grid" />
+
+        <div className="auth-card" style={{ textAlign: 'center', padding: '60px 40px' }}>
+          <div style={{
+            width: 100,
+            height: 100,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 32px',
+            fontSize: 48,
+            color: 'white',
+            boxShadow: '0 10px 40px rgba(16, 185, 129, 0.4)',
+            animation: 'logo-pulse 3s ease-in-out infinite'
+          }}>
+            <CheckCircleOutlined />
+          </div>
+          <h1 className="auth-title" style={{ marginBottom: 16 }}>注册成功！</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 32 }}>
+            您的账号已创建成功，现在可以登录使用系统了。
+          </p>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => navigate('/login')}
+            style={{
+              height: 52,
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 600,
+              padding: '0 48px',
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              border: 'none',
+              boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+            }}
+          >
+            去登录
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="auth-container">
+      <div className="auth-bg-pattern" />
+      <div className="auth-grid" />
+
+      <div className="auth-card">
+        {/* 返回按钮 */}
+        <Link
+          to="/login"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            color: 'var(--text-tertiary)',
+            fontSize: 14,
+            marginBottom: 24,
+            transition: 'color 0.3s ease'
+          }}
+        >
+          <ArrowLeftOutlined /> 返回登录
+        </Link>
+
+        <div className="auth-header">
+          <div className="auth-logo">
+            <StockOutlined />
+          </div>
+          <h1 className="auth-title">创建账号</h1>
+          <p className="auth-subtitle">加入 Maneki 智能股票分析平台</p>
+        </div>
+
+        {error && (
+          <Alert
+            message={error}
+            type="error"
+            showIcon
+            closable
+            onClose={clearError}
+            style={{
+              marginBottom: 24,
+              borderRadius: 12,
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.2)'
+            }}
+          />
+        )}
+
+        <Form
+          form={form}
+          name="register"
+          onFinish={handleSubmit}
+          autoComplete="off"
+          layout="vertical"
+        >
+          <Form.Item
+            name="username"
+            rules={[
+              { required: true, message: '请输入用户名' },
+              { min: 3, message: '用户名至少3个字符' },
+              { max: 20, message: '用户名最多20个字符' },
+              { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
+            ]}
+          >
+            <Input
+              prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="用户名"
+              size="large"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="邮箱"
+              size="large"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="full_name"
+          >
+            <Input
+              prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="姓名（可选）"
+              size="large"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 6, message: '密码至少6位' },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="密码"
+              size="large"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: '请确认密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) {
+                    return Promise.resolve()
+                  }
+                  return Promise.reject(new Error('两次输入的密码不一致'))
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="确认密码"
+              size="large"
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              block
+              loading={submitting}
+              style={{
+                height: 52,
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+              }}
+            >
+              创建账号
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div className="tech-divider" />
+
+        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+          <Text style={{ color: 'var(--text-secondary)' }}>
+            已有账号？ <Link to="/login" style={{ color: '#3b82f6', fontWeight: 600 }}>立即登录</Link>
+          </Text>
+        </Space>
+      </div>
+    </div>
+  )
+}
+
+export default Register

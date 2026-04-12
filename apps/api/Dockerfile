@@ -1,22 +1,33 @@
-FROM python:3.11-slim
+# 构建阶段
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# 安装依赖
+RUN apk add --no-cache git
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 复制依赖文件
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Copy application code
+# 复制源代码
 COPY . .
 
-# Expose port
-EXPOSE 8000
+# 构建
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/main.go
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 运行阶段
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# 复制构建产物
+COPY --from=builder /app/main .
+
+# 暴露端口
+EXPOSE 8080
+
+# 运行
+CMD ["./main"]

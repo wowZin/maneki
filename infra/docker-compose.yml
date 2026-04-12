@@ -1,0 +1,242 @@
+# ============================================
+# Maneki 生产环境 Docker Compose 配置
+# 用于阿里云 ECS/轻量应用服务器部署
+# ============================================
+
+version: '3.8'
+
+services:
+  # FastAPI 应用服务
+  api:
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${NAMESPACE:-your-namespace}/maneki-api:${APP_VERSION:-latest}
+    container_name: maneki_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=aliyun
+      - APP_NAME=Maneki API
+      - DEBUG=false
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=postgresql+asyncpg://stock:${DB_PASSWORD:-stock123}@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://stock:${RABBITMQ_PASSWORD:-stock123}@rabbitmq:5672/
+      - LOG_LEVEL=INFO
+      - SLS_PROJECT=${SLS_PROJECT:-}
+      - SLS_LOGSTORE=${SLS_LOGSTORE:-maneki-api}
+      - SLS_ENDPOINT=${SLS_ENDPOINT:-}
+      # 微信配置
+      - WECHAT_MP_APP_ID=${WECHAT_MP_APP_ID:-}
+      - WECHAT_MP_APP_SECRET=${WECHAT_MP_APP_SECRET:-}
+      - WECHAT_MINI_APP_ID=${WECHAT_MINI_APP_ID:-}
+      - WECHAT_MINI_APP_SECRET=${WECHAT_MINI_APP_SECRET:-}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Data Service (Python/FastAPI)
+  data-service:
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${NAMESPACE:-your-namespace}/maneki-data-service:${APP_VERSION:-latest}
+    container_name: maneki_data_service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8001"  # 仅本地访问，由 API 服务内部调用
+    environment:
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+      - DATABASE_URL=postgresql://stock:${DB_PASSWORD:-stock123}@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - LOCAL_STORAGE_PATH=/data/offline
+      # OSS 配置（可选）
+      - OSS_ENDPOINT=${OSS_ENDPOINT:-}
+      - OSS_ACCESS_KEY=${OSS_ACCESS_KEY:-}
+      - OSS_SECRET_KEY=${OSS_SECRET_KEY:-}
+      - OSS_BUCKET=${OSS_BUCKET:-maneki-data}
+      - ENABLE_SCHEDULER=true
+    volumes:
+      - ./data/offline:/data/offline
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: maneki_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - api
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL 数据库
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: maneki_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=stock
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-stock123}
+      - POSTGRES_DB=stock_analysis
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:5432:5432"  # 仅本地访问
+    networks:
+      - maneki-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock -d stock_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: maneki_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "127.0.0.1:6379:6379"  # 仅本地访问
+    networks:
+      - maneki-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # RabbitMQ 消息队列（可选）
+  rabbitmq:
+    image: rabbitmq:3.12-alpine-management
+    container_name: maneki_rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=stock
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-stock123}
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"      # AMQP
+      - "127.0.0.1:15672:15672"    # 管理界面
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Celery Worker（异步任务）
+  worker:
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${NAMESPACE:-your-namespace}/maneki-api:${APP_VERSION:-latest}
+    container_name: maneki_worker
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - APP_ENV=aliyun
+      - DEBUG=false
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=postgresql+asyncpg://stock:${DB_PASSWORD:-stock123}@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://stock:${RABBITMQ_PASSWORD:-stock123}@rabbitmq:5672/
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Celery Beat（定时任务调度器）
+  beat:
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${NAMESPACE:-your-namespace}/maneki-api:${APP_VERSION:-latest}
+    container_name: maneki_beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    environment:
+      - APP_ENV=aliyun
+      - DEBUG=false
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=postgresql+asyncpg://stock:${DB_PASSWORD:-stock123}@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://stock:${RABBITMQ_PASSWORD:-stock123}@rabbitmq:5672/
+      - LOG_LEVEL=INFO
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  maneki-network:
+    driver: bridge

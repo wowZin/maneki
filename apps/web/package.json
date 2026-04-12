@@ -13,15 +13,16 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.1",
     "@maneki/shared-types": "workspace:*",
     "antd": "^5.14.0",
     "axios": "^1.6.7",
+    "dayjs": "^1.11.20",
     "echarts": "^5.4.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0",
-    "zustand": "^4.5.0",
-    "@maneki/shared-types": "workspace:*"
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@maneki/ts-config": "workspace:*",
