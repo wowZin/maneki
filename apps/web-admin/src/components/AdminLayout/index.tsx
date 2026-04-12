@@ -16,6 +16,9 @@ import {
   MenuUnfoldOutlined,
   BellOutlined,
   ArrowLeftOutlined,
+  DatabaseOutlined,
+  FileTextOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
@@ -54,6 +57,23 @@ const AdminLayout: React.FC = () => {
       key: '/admin/analytics',
       icon: <BarChartOutlined />,
       label: '数据统计',
+    },
+    {
+      key: 'datasource',
+      icon: <DatabaseOutlined />,
+      label: '数据源管理',
+      children: [
+        {
+          key: '/admin/datasource/news',
+          icon: <FileTextOutlined />,
+          label: '新闻资讯',
+        },
+        {
+          key: '/admin/datasource/settings',
+          icon: <ClockCircleOutlined />,
+          label: '同步设置',
+        },
+      ],
     },
     {
       key: '/admin/settings',

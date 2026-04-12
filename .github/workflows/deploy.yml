@@ -1,10 +1,9 @@
-name: Deploy to Aliyun
+name: Deploy to Production
 
 on:
   push:
     branches:
       - main
-      - master
     tags:
       - 'v*'
   workflow_dispatch:
@@ -21,15 +20,13 @@ on:
 env:
   REGISTRY: registry.cn-hangzhou.aliyuncs.com
   NAMESPACE: your-namespace
-  IMAGE_NAME: maneki-api
 
 jobs:
-  build:
+  build-api:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,15 +45,14 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/maneki-api
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      - name: Build and push Docker image
+      - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
           context: ./apps/api
@@ -67,13 +63,54 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-  deploy-staging:
-    needs: build
+  build-data-service:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || inputs.environment == 'staging'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Alibaba Cloud ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALICLOUD_USERNAME }}
+          password: ${{ secrets.ALICLOUD_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/maneki-data-service
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push Data Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/service-data
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  deploy-staging:
+    needs: [build-api, build-data-service]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || inputs.environment == 'staging'
     environment:
       name: staging
-      url: http://${{ secrets.ALIYUN_STAGING_HOST }}:8000
+      url: http://${{ secrets.ALIYUN_STAGING_HOST }}:8080
 
     steps:
       - name: Checkout repository
@@ -87,33 +124,34 @@ jobs:
           key: ${{ secrets.ALIYUN_SSH_KEY }}
           port: 22
           script: |
-            cd /opt/maneki
+            cd /opt/maneki/infra
 
             # 拉取最新镜像
-            docker-compose pull api
+            docker-compose -f docker-compose.prod.yml pull
 
             # 备份数据库
-            ./backup.sh backup || true
+            ./deploy.sh backup || true
 
             # 更新服务
-            docker-compose up -d --no-deps api
+            docker-compose -f docker-compose.prod.yml up -d
 
             # 清理旧镜像
             docker image prune -f
 
             # 健康检查
-            sleep 10
-            curl -f http://localhost:8000/health || exit 1
+            sleep 15
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:8001/health || exit 1
 
             echo "Staging 部署完成"
 
   deploy-production:
-    needs: build
+    needs: [build-api, build-data-service]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production'
     environment:
       name: production
-      url: http://${{ secrets.ALIYUN_PROD_HOST }}
+      url: https://${{ secrets.ALIYUN_PROD_HOST }}
 
     steps:
       - name: Checkout repository
@@ -127,26 +165,28 @@ jobs:
           key: ${{ secrets.ALIYUN_SSH_KEY }}
           port: 22
           script: |
-            cd /opt/maneki
+            cd /opt/maneki/infra
 
-            # 拉取最新镜像（使用 tag 版本）
+            # 更新镜像版本
             export VERSION=${{ github.ref_name }}
-            sed -i "s|image: .*maneki-api:.*|image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${VERSION}|" docker-compose.yml
+            sed -i "s|image: .*maneki-api:.*|image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/maneki-api:${VERSION}|g" docker-compose.prod.yml
+            sed -i "s|image: .*maneki-data-service:.*|image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/maneki-data-service:${VERSION}|g" docker-compose.prod.yml
 
             # 备份数据
-            ./backup.sh backup || true
+            ./deploy.sh backup || true
 
             # 更新服务
-            docker-compose pull
-            docker-compose up -d
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d
 
             # 清理
             docker image prune -f
             docker system prune -f --volumes=false
 
             # 健康检查
-            sleep 10
-            curl -f http://localhost:8000/health || exit 1
+            sleep 15
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:8001/health || exit 1
 
             echo "生产环境部署完成: ${VERSION}"
 
@@ -164,4 +204,4 @@ jobs:
           fields: repo,message,commit,author,action,eventName,ref,workflow
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        if: always() && secrets.SLACK_WEBHOOK_URL != ''
+        if: always() && env.SLACK_WEBHOOK_URL != ''

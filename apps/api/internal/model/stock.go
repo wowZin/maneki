@@ -6,8 +6,7 @@ import (
 
 // Stock 股票基本信息
 type Stock struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	Code      string    `json:"code" gorm:"index;size:20"`      // 股票代码
+	Code      string    `json:"code" gorm:"primaryKey;size:20"` // 股票代码
 	Name      string    `json:"name" gorm:"size:100"`           // 股票名称
 	Industry  string    `json:"industry" gorm:"size:50"`        // 所属行业
 	Area      string    `json:"area" gorm:"size:50"`            // 地区

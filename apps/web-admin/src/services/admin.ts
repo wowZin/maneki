@@ -7,7 +7,7 @@ import api from './api'
 export const adminApi = {
   // 概览统计
   getDashboardStats: async () => {
-    const { data } = await api.get('/admin/dashboard/stats')
+    const { data } = await api.get('/v1/admin/dashboard/stats')
     return data
   },
 

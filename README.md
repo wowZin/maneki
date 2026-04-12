@@ -10,11 +10,15 @@
 
 ```
 maneki/
-├── apps/
-│   ├── api/                 # Go 后端 API（主服务）
-│   ├── data-service/        # 数据服务（数据源获取 & 离线分析）
+├── apps/                    # 可独立运行的应用
+│   ├── api/                 # Go API（主服务）
+│   ├── service-data/        # Python 数据服务（数据源获取 & 离线分析）
 │   ├── web/                 # React 前端（用户端）
 │   └── web-admin/           # React 前端（管理后台）
+├── packages/                # 共享库/组件
+│   ├── service-agent/       # Go Agent 库（多Agent决策）
+│   ├── shared-types/        # 共享类型定义
+│   └── ts-config/           # TypeScript 共享配置
 ├── docs/
 │   ├── architecture.md      # 架构设计文档
 │   └── ...
@@ -31,13 +35,24 @@ maneki/
 
 | 技术 | 用途 |
 |------|------|
-| Go 1.22+ | 高性能后端语言 |
+| Go 1.22+ | 后端运行时 |
 | Gin | Web 框架 |
 | GORM | ORM |
 | PostgreSQL + TimescaleDB | 关系型/时序数据库 |
 | Redis | 缓存/Session |
 | JWT | 认证 |
 | Tushare/Akshare | 股票数据源 |
+
+### 数据服务 (apps/service-data) - Python
+
+| 技术 | 用途 |
+|------|------|
+| Python 3.11+ | 后端运行时 |
+| FastAPI | Web 框架 |
+| SQLAlchemy | ORM |
+| APScheduler | 定时任务 |
+| PostgreSQL | 数据库 |
+| Redis | 缓存 |
 
 ### 前端 (apps/web)
 
@@ -90,7 +105,7 @@ pnpm dev
 ### 4. 启动数据服务（可选）
 
 ```bash
-cd apps/data-service
+cd apps/service-data
 pip install -r requirements.txt
 python main.py
 # 数据服务启动在 http://localhost:8001
@@ -175,7 +190,7 @@ err := db.AutoMigrate(
 ### 2024-04-11: Python → Go 迁移
 
 - 后端从 Python/FastAPI 迁移到 Go/Gin
-- 新增数据服务 `apps/data-service`（数据源获取 & 离线分析）
+- 新增数据服务 `apps/service-data`（数据源获取 & 离线分析）
 - 更新架构文档 `docs/architecture.md`
 
 ## 部署

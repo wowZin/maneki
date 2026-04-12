@@ -22,6 +22,9 @@ type User struct {
 	Phone    string `json:"phone" gorm:"size:20"`
 	AvatarURL string `json:"avatar_url" gorm:"size:500"`
 
+	// 安全信息（不暴露给前端）
+	HashedPassword string `json:"-" gorm:"column:hashed_password;size:255"`
+
 	// 用户状态
 	IsActive    bool `json:"is_active" gorm:"default:true"`
 	IsSuperuser bool `json:"is_superuser" gorm:"default:false"`

@@ -51,6 +51,8 @@ func main() {
 	agentRepo := repository.NewAgentRepository(db)
 	weightRepo := repository.NewAgentWeightRepository(db)
 	subscriptionRepo := repository.NewAgentSubscriptionRepository(db)
+	newsRepo := repository.NewNewsRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -59,6 +61,9 @@ func main() {
 	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient)
 	agentHandler := handler.NewAgentHandler(agentRepo, weightRepo, subscriptionRepo)
 	stockHandler := handler.NewStockHandler(dataProvider)
+	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo)
+	settingsHandler := handler.NewSettingsHandler(settingsRepo)
+	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -66,7 +71,7 @@ func main() {
 	// 全局中间件
 	r.Use(gin.Recovery())
 	r.Use(middleware.Logger())
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(cfg))
 	r.Use(middleware.SecurityHeaders())
 
 	// 健康检查
@@ -120,9 +125,24 @@ func main() {
 		admin.Use(middleware.AuthMiddleware(cfg))
 		admin.Use(middleware.AdminAuthMiddleware())
 		{
+			// Dashboard
+			admin.GET("/dashboard/stats", dashboardHandler.GetDashboardStats)
+
 			// Agent管理
 			admin.POST("/agents/:id/featured", agentHandler.SetFeatured)
 			admin.POST("/stocks/:code/sync", stockHandler.SyncStock)
+
+			// 数据源管理
+			admin.GET("/datasource/news", datasourceHandler.GetNewsList)
+			admin.DELETE("/datasource/news/:id", datasourceHandler.DeleteNews)
+			admin.POST("/datasource/news/batch-delete", datasourceHandler.BatchDeleteNews)
+			admin.POST("/datasource/news/sync", datasourceHandler.SyncNews)
+			admin.GET("/datasource/status", datasourceHandler.GetDataSourceStatus)
+			admin.GET("/datasource/stats", datasourceHandler.GetStats)
+
+			// 系统设置
+			admin.GET("/settings/news-sync", settingsHandler.GetNewsSyncSettings)
+			admin.POST("/settings/news-sync", settingsHandler.SaveNewsSyncSettings)
 
 			// 用户管理
 			admin.GET("/users", func(c *gin.Context) {
@@ -186,8 +206,11 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// 自动迁移
-	err = db.AutoMigrate(
+	// 自动迁移（跳过外键约束）
+	migrator := db.Migrator()
+
+	// 逐个检查并迁移表
+	models := []interface{}{
 		&model.User{},
 		&model.UserAgent{},
 		&model.Stock{},
@@ -197,9 +220,22 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.Agent{},
 		&model.AgentWeight{},
 		&model.AgentSubscription{},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to migrate: %w", err)
+		&model.News{},
+		&model.Settings{},
+	}
+
+	for _, m := range models {
+		if !migrator.HasTable(m) {
+			if err := migrator.CreateTable(m); err != nil {
+				return nil, fmt.Errorf("failed to create table: %w", err)
+			}
+		} else {
+			// 表已存在，只添加缺失的列
+			if err := migrator.AutoMigrate(m); err != nil {
+				// 忽略外键约束错误
+				log.Printf("Warning: AutoMigrate warning for %T: %v", m, err)
+			}
+		}
 	}
 
 	return db, nil

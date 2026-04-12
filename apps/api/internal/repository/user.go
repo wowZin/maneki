@@ -51,6 +51,19 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.U
 	return &user, nil
 }
 
+// GetByUsername 根据用户名获取用户
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
+	var user model.User
+	err := r.db.WithContext(ctx).First(&user, "username = ?", username).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetByPhone 根据手机号获取用户
 func (r *UserRepository) GetByPhone(ctx context.Context, phone string) (*model.User, error) {
 	var user model.User

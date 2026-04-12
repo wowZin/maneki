@@ -25,19 +25,19 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
-  // 禁止自动携带 cookie（使用 token 认证）
-  withCredentials: false,
+  // 启用 cookie 支持
+  withCredentials: true,
 })
 
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    // Cookie 自动携带 token，无需手动设置 Authorization
 
-    // 添加认证头
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+    // 禁用缓存
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    config.headers['Pragma'] = 'no-cache'
+    config.headers['Expires'] = '0'
 
     // 添加安全头
     config.headers['X-Request-Nonce'] = generateNonce()

@@ -1,12 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/http"
 	"strings"
 	"time"
 
@@ -51,7 +51,7 @@ func NewLoginProtection(redis *redis.Client) *LoginProtection {
 
 // CheckLoginAttempts 检查登录尝试次数
 func (lp *LoginProtection) CheckLoginAttempts(identifier string, ip string) (bool, int) {
-	ctx := lp.redis.Context()
+	ctx := context.Background()
 
 	// 检查账号锁定
 	accountKey := fmt.Sprintf("login_lock:account:%s", identifier)
@@ -70,7 +70,7 @@ func (lp *LoginProtection) CheckLoginAttempts(identifier string, ip string) (boo
 
 // RecordFailedAttempt 记录失败尝试
 func (lp *LoginProtection) RecordFailedAttempt(identifier string, ip string) {
-	ctx := lp.redis.Context()
+	ctx := context.Background()
 
 	// 账号失败次数
 	accountKey := fmt.Sprintf("login_fail:account:%s", identifier)
@@ -96,7 +96,7 @@ func (lp *LoginProtection) RecordFailedAttempt(identifier string, ip string) {
 
 // ClearAttempts 清除失败记录
 func (lp *LoginProtection) ClearAttempts(identifier string, ip string) {
-	ctx := lp.redis.Context()
+	ctx := context.Background()
 	lp.redis.Del(ctx, fmt.Sprintf("login_fail:account:%s", identifier))
 	lp.redis.Del(ctx, fmt.Sprintf("login_fail:ip:%s", ip))
 }
@@ -139,7 +139,7 @@ type LogEntry struct {
 
 // Log 记录审计日志
 func (al *AuditLogger) Log(action string, userID string, userEmail string, details map[string]interface{}, c *gin.Context) {
-	ctx := al.redis.Context()
+	ctx := context.Background()
 
 	entry := LogEntry{
 		Timestamp:  time.Now().Format(time.RFC3339),
@@ -182,7 +182,7 @@ func NewTokenBlacklist(redis *redis.Client) *TokenBlacklist {
 
 // AddToBlacklist 将Token加入黑名单
 func (tb *TokenBlacklist) AddToBlacklist(token string, exp int64) {
-	ctx := tb.redis.Context()
+	ctx := context.Background()
 	hash := sha256.Sum256([]byte(token))
 	tokenHash := hex.EncodeToString(hash[:])
 
@@ -194,7 +194,7 @@ func (tb *TokenBlacklist) AddToBlacklist(token string, exp int64) {
 
 // IsBlacklisted 检查Token是否在黑名单中
 func (tb *TokenBlacklist) IsBlacklisted(token string) bool {
-	ctx := tb.redis.Context()
+	ctx := context.Background()
 	hash := sha256.Sum256([]byte(token))
 	tokenHash := hex.EncodeToString(hash[:])
 
@@ -271,7 +271,7 @@ func NewRateLimiter(redis *redis.Client, window time.Duration, maxRequests int) 
 
 // IsAllowed 检查是否允许请求
 func (rl *RateLimiter) IsAllowed(key string) bool {
-	ctx := rl.redis.Context()
+	ctx := context.Background()
 	now := time.Now().Unix()
 	windowStart := now - int64(rl.window.Seconds())
 

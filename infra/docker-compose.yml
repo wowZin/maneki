@@ -51,6 +51,45 @@ services:
       retries: 3
       start_period: 10s
 
+  # Data Service (Python/FastAPI)
+  data-service:
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${NAMESPACE:-your-namespace}/maneki-data-service:${APP_VERSION:-latest}
+    container_name: maneki_data_service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8001"  # 仅本地访问，由 API 服务内部调用
+    environment:
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+      - DATABASE_URL=postgresql://stock:${DB_PASSWORD:-stock123}@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - LOCAL_STORAGE_PATH=/data/offline
+      # OSS 配置（可选）
+      - OSS_ENDPOINT=${OSS_ENDPOINT:-}
+      - OSS_ACCESS_KEY=${OSS_ACCESS_KEY:-}
+      - OSS_SECRET_KEY=${OSS_SECRET_KEY:-}
+      - OSS_BUCKET=${OSS_BUCKET:-maneki-data}
+      - ENABLE_SCHEDULER=true
+    volumes:
+      - ./data/offline:/data/offline
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maneki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   # Nginx 反向代理
   nginx:
     image: nginx:1.25-alpine

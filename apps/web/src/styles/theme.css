@@ -89,6 +89,7 @@ html {
 }
 
 body {
+  margin: 0;
   font-family: var(--font-body);
   background: var(--bg-primary);
   color: var(--text-primary);

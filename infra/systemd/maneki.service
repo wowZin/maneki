@@ -1,0 +1,22 @@
+[Unit]
+Description=Maneki Stock Analysis Platform
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/maneki/infra
+Environment=COMPOSE_FILE=docker-compose.prod.yml
+
+# 启动命令
+ExecStart=/usr/local/bin/docker-compose -f ${COMPOSE_FILE} up -d
+
+# 停止命令
+ExecStop=/usr/local/bin/docker-compose -f ${COMPOSE_FILE} down
+
+# 重启命令
+ExecReload=/usr/local/bin/docker-compose -f ${COMPOSE_FILE} restart
+
+[Install]
+WantedBy=multi-user.target

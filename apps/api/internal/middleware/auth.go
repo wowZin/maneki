@@ -23,21 +23,31 @@ type JWTClaims struct {
 // AuthMiddleware JWT认证中间件
 func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从Header获取token
+		var tokenString string
+
+		// 1. 尝试从 Header 获取 token
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
-			return
+		if authHeader != "" {
+			// Bearer token
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+				tokenString = parts[1]
+			}
 		}
 
-		// Bearer token
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-			return
+		// 2. 如果 Header 没有，从 Cookie 获取
+		if tokenString == "" {
+			cookie, err := c.Cookie("access_token")
+			if err == nil && cookie != "" {
+				tokenString = cookie
+			}
 		}
 
-		tokenString := parts[1]
+		// 3. 还是没有 token，返回未认证
+		if tokenString == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing authorization"})
+			return
+		}
 
 		// 解析token
 		claims, err := ParseToken(tokenString, cfg.SecretKey)

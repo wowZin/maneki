@@ -97,12 +97,87 @@ services:
   #     - timescaledb
   #   restart: unless-stopped
 
+  # Data Service（热重载开发模式）
+  data-service:
+    build:
+      context: ../apps/service-data
+      dockerfile: Dockerfile.dev
+    container_name: maneki_data_service_dev
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../apps/service-data:/app
+      - pip_cache:/root/.cache/pip
+    environment:
+      - DATABASE_URL=postgresql://stock:stock123@timescaledb:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - LOCAL_STORAGE_PATH=/data/offline
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+      - ENABLE_SCHEDULER=true
+      - LOG_LEVEL=INFO
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # Go API 服务（热重载开发模式）
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile.dev
+    container_name: maneki_api_dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../apps/api:/app
+      - go_mod_cache:/go/pkg/mod
+    environment:
+      - APP_NAME=Maneki API Dev
+      - APP_VERSION=1.0.0-dev
+      - DEBUG=true
+      - PORT=8080
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - DB_USER=stock
+      - DB_PASSWORD=stock123
+      - DB_NAME=stock_analysis
+      - DB_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - JWT_ACCESS_EXPIRE=2h
+      - JWT_REFRESH_EXPIRE=168h
+      - TUSHARE_TOKEN=
+      - TUSHARE_ENABLED=false
+      - DATA_SERVICE_URL=http://data-service:8001
+      - DATA_SOURCE_STRATEGY=tiered
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # 开发模式下保持容器运行
+    stdin_open: true
+    tty: true
+
 volumes:
   timescale_data:
     driver: local
   redis_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  go_mod_cache:
+    driver: local
+  pip_cache:
     driver: local
   # pgadmin_data:
   #   driver: local

@@ -1,0 +1,47 @@
+# Data Service 本地开发 Docker Compose
+version: '3.8'
+
+services:
+  data-service:
+    build: .
+    container_name: maneki_data_service_dev
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN}
+      - DATABASE_URL=postgresql://stock:stock123@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - LOCAL_STORAGE_PATH=/data/offline
+      - ENABLE_SCHEDULER=true
+    volumes:
+      - ./:/app
+      - ./data/offline:/data/offline
+    depends_on:
+      - postgres
+      - redis
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: maneki_postgres_dev
+    environment:
+      - POSTGRES_USER=stock
+      - POSTGRES_PASSWORD=stock123
+      - POSTGRES_DB=stock_analysis
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: maneki_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
