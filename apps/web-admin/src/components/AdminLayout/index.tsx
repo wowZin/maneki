@@ -2,13 +2,12 @@
  * 管理后台布局组件
  */
 
-import React, { useState } from 'react'
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Badge, theme } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Badge, theme, Popover, List, Modal, Empty, Divider, Typography } from 'antd'
 import {
   DashboardOutlined,
   UserOutlined,
   SettingOutlined,
-  BarChartOutlined,
   RobotOutlined,
   GiftOutlined,
   LogoutOutlined,
@@ -18,45 +17,163 @@ import {
   ArrowLeftOutlined,
   DatabaseOutlined,
   FileTextOutlined,
-  ClockCircleOutlined,
+  TrophyOutlined,
+  DollarOutlined,
+  SafetyOutlined,
+  NotificationOutlined,
+  BankOutlined,
+  TeamOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
+import { useNotificationStore } from '../../stores/notification'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 const { Header, Sider, Content } = Layout
 
+dayjs.extend(relativeTime)
+
 const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailContent, setDetailContent] = useState<{ title: string; content: string; created_at: string } | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { token } = theme.useToken()
 
+  const unreadCount = useNotificationStore((s) => s.unreadCount)
+  const notifications = useNotificationStore((s) => s.notifications)
+  const fetchStats = useNotificationStore((s) => s.fetchStats)
+  const fetchList = useNotificationStore((s) => s.fetchList)
+  const markRead = useNotificationStore((s) => s.markRead)
+  const markAllRead = useNotificationStore((s) => s.markAllRead)
+
+  // 轮询未读通知数
+  useEffect(() => {
+    fetchStats()
+    const interval = setInterval(() => {
+      fetchStats()
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [fetchStats])
+
+  // Popover 打开时拉取列表
+  const handlePopoverOpenChange = (open: boolean) => {
+    if (open) {
+      fetchList({ page: 1, pageSize: 5 })
+    }
+  }
+
+  const handleClickNotification = async (item: any) => {
+    if (!item.is_read) {
+      await markRead(item.id)
+    }
+    setDetailContent({
+      title: item.title,
+      content: item.content,
+      created_at: item.created_at,
+    })
+    setDetailModalOpen(true)
+  }
+
+  const notificationPopoverContent = (
+    <div style={{ width: 360 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Typography.Text strong>通知中心</Typography.Text>
+        {unreadCount > 0 && (
+          <Button type="link" size="small" onClick={markAllRead}>
+            全部已读
+          </Button>
+        )}
+      </div>
+      <Divider style={{ margin: '8px 0' }} />
+      {notifications.length === 0 ? (
+        <Empty description="暂无通知" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      ) : (
+        <List
+          dataSource={notifications}
+          renderItem={(item: any) => (
+            <List.Item
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                background: item.is_read ? 'transparent' : '#f0f7ff',
+                borderRadius: 6,
+              }}
+              onClick={() => handleClickNotification(item)}
+            >
+              <List.Item.Meta
+                avatar={
+                  item.type === 'task_failed' ? (
+                    <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+                  ) : (
+                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
+                  )
+                }
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Typography.Text
+                      ellipsis
+                      style={{ maxWidth: 220, fontWeight: item.is_read ? 'normal' : 'bold' }}
+                    >
+                      {item.title}
+                    </Typography.Text>
+                    {!item.is_read && <Badge status="processing" />}
+                  </div>
+                }
+                description={
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {dayjs(item.created_at).fromNow()}
+                  </Typography.Text>
+                }
+              />
+            </List.Item>
+          )}
+        />
+      )}
+      <Divider style={{ margin: '8px 0' }} />
+      <Button type="link" block onClick={() => navigate('/notifications')}>
+        查看全部通知
+      </Button>
+    </div>
+  )
+
   const menuItems = [
     {
-      key: '/admin',
+      key: '/',
       icon: <DashboardOutlined />,
       label: '概览',
     },
     {
-      key: '/admin/users',
+      key: '/users',
       icon: <UserOutlined />,
       label: '用户管理',
     },
     {
-      key: '/admin/agents',
+      key: '/agents',
       icon: <RobotOutlined />,
       label: 'Agent 管理',
     },
     {
-      key: '/admin/rebates',
+      key: 'rebates',
       icon: <GiftOutlined />,
       label: '返佣管理',
-    },
-    {
-      key: '/admin/analytics',
-      icon: <BarChartOutlined />,
-      label: '数据统计',
+      children: [
+        {
+          key: '/rebates',
+          icon: <DollarOutlined />,
+          label: '返佣数据',
+        },
+        {
+          key: '/settings/rebate',
+          icon: <SettingOutlined />,
+          label: '规则设置',
+        },
+      ],
     },
     {
       key: 'datasource',
@@ -64,21 +181,53 @@ const AdminLayout: React.FC = () => {
       label: '数据源管理',
       children: [
         {
-          key: '/admin/datasource/news',
+          key: '/datasource/news',
           icon: <FileTextOutlined />,
           label: '新闻资讯',
         },
         {
-          key: '/admin/datasource/settings',
-          icon: <ClockCircleOutlined />,
-          label: '同步设置',
+          key: '/datasource/top-list',
+          icon: <TrophyOutlined />,
+          label: '龙虎榜数据',
+        },
+        {
+          key: '/datasource/top-inst',
+          icon: <BankOutlined />,
+          label: '龙虎榜机构交易名单',
+        },
+        {
+          key: '/datasource/hot-money',
+          icon: <TeamOutlined />,
+          label: '游资名录',
         },
       ],
     },
     {
-      key: '/admin/settings',
+      key: 'settings',
       icon: <SettingOutlined />,
       label: '系统配置',
+      children: [
+        {
+          key: '/settings/pricing',
+          icon: <DollarOutlined />,
+          label: '定价配置',
+        },
+        {
+          key: '/settings/system',
+          icon: <SettingOutlined />,
+          label: '元配置',
+        },
+        {
+          key: '/settings/notification',
+          icon: <NotificationOutlined />,
+          label: '通知配置',
+        },
+        {
+          key: '/settings/admin-accounts',
+          icon: <SafetyOutlined />,
+          label: '管理员账户',
+        },
+      ],
     },
   ]
 
@@ -170,9 +319,16 @@ const AdminLayout: React.FC = () => {
           </Space>
 
           <Space size={16}>
-            <Badge count={5} size="small">
-              <Button type="text" icon={<BellOutlined />} />
-            </Badge>
+            <Popover
+              content={notificationPopoverContent}
+              trigger="hover"
+              placement="bottomRight"
+              onOpenChange={handlePopoverOpenChange}
+            >
+              <Badge count={unreadCount} size="small" offset={[0, 2]}>
+                <Button type="text" icon={<BellOutlined />} />
+              </Badge>
+            </Popover>
 
             <Dropdown
               menu={{ items: userMenuItems, onClick: ({ key }) => handleMenuClick(key) }}
@@ -200,6 +356,43 @@ const AdminLayout: React.FC = () => {
           <Outlet />
         </Content>
       </Layout>
+
+      <Modal
+        title={detailContent?.title || '通知详情'}
+        open={detailModalOpen}
+        onCancel={() => setDetailModalOpen(false)}
+        footer={
+          <Button type="primary" onClick={() => setDetailModalOpen(false)}>
+            关闭
+          </Button>
+        }
+      >
+        {detailContent && (
+          <div>
+            <Typography.Text type="secondary">
+              {dayjs(detailContent.created_at).format('YYYY-MM-DD HH:mm:ss')}
+            </Typography.Text>
+            <pre
+              style={{
+                marginTop: 16,
+                padding: 12,
+                background: '#f5f5f5',
+                borderRadius: 8,
+                overflow: 'auto',
+                maxHeight: 400,
+              }}
+            >
+              {(() => {
+                try {
+                  return JSON.stringify(JSON.parse(detailContent.content), null, 2)
+                } catch {
+                  return detailContent.content
+                }
+              })()}
+            </pre>
+          </div>
+        )}
+      </Modal>
     </Layout>
   )
 }

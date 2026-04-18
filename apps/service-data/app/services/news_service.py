@@ -11,11 +11,61 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import json
 import os
+import re
 import akshare as ak
 import pandas as pd
 from loguru import logger
 
 from app.core import settings
+
+
+def format_datetime(dt_str: str) -> str:
+    """
+    将各种日期时间格式统一格式化为 YYYY-MM-dd HH:mm
+
+    支持的输入格式：
+    - 2024-01-15 08:30:00
+    - 2024/01/15 08:30
+    - 2024年01月15日 08:30
+    - 2024-01-15T08:30:00
+    """
+    if not dt_str or dt_str == 'nan':
+        return ''
+
+    dt_str = str(dt_str).strip()
+
+    # 尝试解析各种格式
+    patterns = [
+        # 标准格式
+        (r'^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$', '%Y-%m-%d %H:%M:%S'),
+        (r'^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$', '%Y-%m-%d %H:%M'),
+        # 斜杠格式
+        (r'^(\d{4})/(\d{2})/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$', '%Y/%m/%d %H:%M:%S'),
+        (r'^(\d{4})/(\d{2})/(\d{2})\s+(\d{2}):(\d{2})$', '%Y/%m/%d %H:%M'),
+        # 中文格式
+        (r'^(\d{4})年(\d{2})月(\d{2})日\s+(\d{2}):(\d{2}):(\d{2})$', '%Y年%m月%d日 %H:%M:%S'),
+        (r'^(\d{4})年(\d{2})月(\d{2})日\s+(\d{2}):(\d{2})$', '%Y年%m月%d日 %H:%M'),
+        # ISO 格式
+        (r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})', '%Y-%m-%dT%H:%M:%S'),
+    ]
+
+    for pattern, fmt in patterns:
+        if re.match(pattern, dt_str):
+            try:
+                dt = datetime.strptime(dt_str[:len(fmt.replace('%', ''))], fmt)
+                return dt.strftime('%Y-%m-%d %H:%M')
+            except ValueError:
+                continue
+
+    # 如果都不匹配，尝试 pandas 解析
+    try:
+        dt = pd.to_datetime(dt_str)
+        return dt.strftime('%Y-%m-%d %H:%M')
+    except:
+        pass
+
+    # 返回原始值（无法解析时）
+    return dt_str
 
 
 def get_major_news(
@@ -60,18 +110,17 @@ def get_major_news(
         # 转换为标准格式
         result = []
         for _, row in df.head(100).iterrows():  # 取最新 100 条
-            # 处理日期格式
-            datetime_str = str(row.get("datetime", ""))
-            
+            # 处理日期格式，统一格式化为 YYYY-MM-dd HH:mm
+            datetime_str = format_datetime(str(row.get("datetime", "")))
+
             result.append({
                 "datetime": datetime_str,
                 "title": str(row.get("title", "")),
                 "content": str(row.get("content", "")),
                 "url": str(row.get("url", "")),
                 "src": news_src
-            }
-            )
-        
+            })
+
         return result
     
     except Exception as e:
@@ -98,8 +147,11 @@ def get_stock_news(symbol: str = "000001") -> List[Dict[str, Any]]:
         
         result = []
         for _, row in df.iterrows():
+            # 处理日期格式，统一格式化为 YYYY-MM-dd HH:mm
+            datetime_str = format_datetime(str(row.get("datetime", "")))
+
             result.append({
-                "datetime": str(row.get("datetime", "")),
+                "datetime": datetime_str,
                 "title": str(row.get("title", "")),
                 "content": str(row.get("content", "")),
                 "url": str(row.get("url", "")),

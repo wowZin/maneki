@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -52,7 +51,11 @@ func main() {
 	weightRepo := repository.NewAgentWeightRepository(db)
 	subscriptionRepo := repository.NewAgentSubscriptionRepository(db)
 	newsRepo := repository.NewNewsRepository(db)
+	topListRepo := repository.NewTopListRepository(db)
+	topInstRepo := repository.NewTopInstRepository(db)
+	hotMoneyRepo := repository.NewHotMoneyRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
+	notificationRepo := repository.NewNotificationRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -61,9 +64,11 @@ func main() {
 	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient)
 	agentHandler := handler.NewAgentHandler(agentRepo, weightRepo, subscriptionRepo)
 	stockHandler := handler.NewStockHandler(dataProvider)
-	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo)
+	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo, topListRepo, topInstRepo, hotMoneyRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
+	userHandler := handler.NewUserHandler(userRepo)
+	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -129,39 +134,82 @@ func main() {
 			admin.GET("/dashboard/stats", dashboardHandler.GetDashboardStats)
 
 			// Agent管理
+			admin.GET("/agents", agentHandler.ListAgentsAdmin)
+			admin.POST("/agents", agentHandler.CreateAgent)
+			admin.PUT("/agents/:id", agentHandler.UpdateAgent)
+			admin.DELETE("/agents/:id", agentHandler.DeleteAgent)
 			admin.POST("/agents/:id/featured", agentHandler.SetFeatured)
 			admin.POST("/stocks/:code/sync", stockHandler.SyncStock)
 
-			// 数据源管理
+			// 数据源管理 - 新闻
 			admin.GET("/datasource/news", datasourceHandler.GetNewsList)
+			admin.GET("/datasource/news/:id", datasourceHandler.GetNewsById)
 			admin.DELETE("/datasource/news/:id", datasourceHandler.DeleteNews)
 			admin.POST("/datasource/news/batch-delete", datasourceHandler.BatchDeleteNews)
 			admin.POST("/datasource/news/sync", datasourceHandler.SyncNews)
 			admin.GET("/datasource/status", datasourceHandler.GetDataSourceStatus)
 			admin.GET("/datasource/stats", datasourceHandler.GetStats)
 
+			// 数据源管理 - 龙虎榜
+			admin.GET("/datasource/top-list", datasourceHandler.GetTopList)
+			admin.DELETE("/datasource/top-list/:id", datasourceHandler.DeleteTopList)
+			admin.POST("/datasource/top-list/batch-delete", datasourceHandler.BatchDeleteTopList)
+			admin.POST("/datasource/top-list/sync", datasourceHandler.SyncTopList)
+			admin.GET("/datasource/top-list/stats", datasourceHandler.GetTopListStats)
+
+			// 数据源管理 - 龙虎榜机构交易名单
+			admin.GET("/datasource/top-inst", datasourceHandler.GetTopInstList)
+			admin.DELETE("/datasource/top-inst/:id", datasourceHandler.DeleteTopInst)
+			admin.POST("/datasource/top-inst/batch-delete", datasourceHandler.BatchDeleteTopInst)
+			admin.POST("/datasource/top-inst/sync", datasourceHandler.SyncTopInst)
+			admin.GET("/datasource/top-inst/stats", datasourceHandler.GetTopInstStats)
+
+			// 数据源管理 - 游资名录
+			admin.GET("/datasource/hot-money", datasourceHandler.GetHotMoneyList)
+			admin.DELETE("/datasource/hot-money/:id", datasourceHandler.DeleteHotMoney)
+			admin.POST("/datasource/hot-money/batch-delete", datasourceHandler.BatchDeleteHotMoney)
+			admin.POST("/datasource/hot-money/sync", datasourceHandler.SyncHotMoney)
+			admin.GET("/datasource/hot-money/stats", datasourceHandler.GetHotMoneyStats)
+
 			// 系统设置
+			// 系统设置 - 新闻同步
 			admin.GET("/settings/news-sync", settingsHandler.GetNewsSyncSettings)
 			admin.POST("/settings/news-sync", settingsHandler.SaveNewsSyncSettings)
 
+			// 系统设置 - 龙虎榜同步
+			admin.GET("/settings/top-list-sync", settingsHandler.GetTopListSyncSettings)
+			admin.POST("/settings/top-list-sync", settingsHandler.SaveTopListSyncSettings)
+
+			// 系统设置 - 龙虎榜机构交易名单同步
+			admin.GET("/settings/top-inst-sync", settingsHandler.GetTopInstSyncSettings)
+			admin.POST("/settings/top-inst-sync", settingsHandler.SaveTopInstSyncSettings)
+
+			// 系统设置 - 游资名录同步
+			admin.GET("/settings/hot-money-sync", settingsHandler.GetHotMoneySyncSettings)
+			admin.POST("/settings/hot-money-sync", settingsHandler.SaveHotMoneySyncSettings)
+
 			// 用户管理
-			admin.GET("/users", func(c *gin.Context) {
-				page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-				pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+			admin.GET("/users", userHandler.ListUsers)
+			admin.GET("/users/stats", userHandler.GetUserStats) // 必须在 /users/:id 之前
+			admin.POST("/users", userHandler.CreateUser)
+			admin.GET("/users/:id", userHandler.GetUser)
+			admin.PUT("/users/:id", userHandler.UpdateUser)
+			admin.DELETE("/users/:id", userHandler.DeleteUser)
+			admin.POST("/users/:id/reset-password", userHandler.ResetPassword)
+			admin.POST("/users/:id/toggle/:action", userHandler.ToggleUserStatus)
 
-				users, total, err := userRepo.List(c.Request.Context(), page, pageSize)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
+			// 通知管理
+			admin.GET("/notifications", notificationHandler.GetNotifications)
+			admin.POST("/notifications/:id/read", notificationHandler.MarkRead)
+			admin.POST("/notifications/read-all", notificationHandler.MarkAllRead)
+			admin.GET("/notifications/stats", notificationHandler.GetNotificationStats)
+		}
 
-				c.JSON(http.StatusOK, gin.H{
-					"data":  users,
-					"total": total,
-					"page":  page,
-					"size":  pageSize,
-				})
-			})
+		// 内部服务路由（供 data-service 调用，使用 X-Internal-Token 认证）
+		internal := v1.Group("/internal")
+		internal.Use(middleware.InternalTokenMiddleware())
+		{
+			internal.POST("/notifications", notificationHandler.CreateNotification)
 		}
 	}
 
@@ -221,7 +269,11 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.AgentWeight{},
 		&model.AgentSubscription{},
 		&model.News{},
+		&model.TopList{},
+		&model.TopInst{},
+		&model.HotMoney{},
 		&model.Settings{},
+		&model.Notification{},
 	}
 
 	for _, m := range models {

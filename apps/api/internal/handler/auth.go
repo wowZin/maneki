@@ -127,14 +127,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	h.auditLogger.Log("user_create", user.ID.String(), user.Email, nil, c)
 
 	// 设置 httpOnly Cookie
-	h.setTokenCookie(c, "access_token", accessToken, int(h.cfg.JWT.AccessTokenExpire.Seconds()))
+	h.setTokenCookie(c, "access_token", accessToken, 14 * 24 * 60 * 60)
 	h.setTokenCookie(c, "refresh_token", refreshToken, int(h.cfg.JWT.RefreshTokenExpire.Seconds()))
 
 	c.JSON(http.StatusCreated, TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    int(h.cfg.JWT.AccessTokenExpire.Seconds()),
+		ExpiresIn:    14 * 24 * 60 * 60,
 		User: UserInfo{
 			ID:          user.ID.String(),
 			Email:       user.Email,
@@ -228,14 +228,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	h.auditLogger.Log("login_success", user.ID.String(), user.Email, nil, c)
 
 	// 设置 httpOnly Cookie
-	h.setTokenCookie(c, "access_token", accessToken, int(h.cfg.JWT.AccessTokenExpire.Seconds()))
+	h.setTokenCookie(c, "access_token", accessToken, 14 * 24 * 60 * 60)
 	h.setTokenCookie(c, "refresh_token", refreshToken, int(h.cfg.JWT.RefreshTokenExpire.Seconds()))
 
 	c.JSON(http.StatusOK, TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    int(h.cfg.JWT.AccessTokenExpire.Seconds()),
+		ExpiresIn:    14 * 24 * 60 * 60,
 		User: UserInfo{
 			ID:          user.ID.String(),
 			Email:       user.Email,
@@ -364,7 +364,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"access_token": accessToken,
 		"token_type":   "Bearer",
-		"expires_in":   int(h.cfg.JWT.AccessTokenExpire.Seconds()),
+		"expires_in":   14 * 24 * 60 * 60,
 	})
 }
 

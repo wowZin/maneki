@@ -168,6 +168,217 @@ def sync_news_task():
 
     logger.info("News sync task completed")
 
+    # 7. 发送通知
+    try:
+        from app.services.notification_service import send_task_notification
+        total_inserted = sum(len(v) for v in source_results.values())
+        send_task_notification(
+            title=f"新闻同步完成 ({date})",
+            content={
+                "task": "news_sync",
+                "date": date,
+                "total": len(all_news),
+                "sources": list(source_results.keys()),
+            },
+            notification_type="task_success",
+        )
+    except Exception as e:
+        logger.warning(f"Notification send failed: {e}")
+
+
+def sync_top_list_task():
+    """
+    龙虎榜数据同步任务
+
+    收盘后获取当日龙虎榜数据
+    """
+    from datetime import datetime
+    from app.services.toplist_sync_service import sync_top_list_to_db
+    from app.services.config_service import ConfigService
+
+    logger.info("Starting top list sync task...")
+
+    # 读取配置
+    settings = ConfigService.get_top_list_sync_settings()
+    enabled = settings.get("enabled", True)
+
+    if not enabled:
+        logger.info("Top list sync is disabled")
+        return
+
+    # 获取今日日期
+    trade_date = datetime.now().strftime("%Y%m%d")
+
+    # 非交易日跳过
+    from app.services.toplist_service import is_trade_day
+    if not is_trade_day(trade_date):
+        logger.info(f"Today {trade_date} is not a trading day, skip top list sync")
+        return
+
+    result = {"error": ""}
+    try:
+        # 不传入日期，由服务自动获取最近交易日（即今天）
+        result = sync_top_list_to_db()
+        logger.info(
+            f"Top list sync completed: date={result.get('trade_date', trade_date)}, "
+            f"inserted={result['inserted']}, total={result['total']}"
+        )
+        # 发送通知
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title=f"龙虎榜同步完成 ({result.get('trade_date', trade_date)})",
+                content={
+                    "task": "top_list_sync",
+                    "trade_date": result.get('trade_date', trade_date),
+                    "inserted": result.get('inserted', 0),
+                    "total": result.get('total', 0),
+                },
+                notification_type="task_success",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+    except Exception as e:
+        logger.error(f"Top list sync failed: {e}")
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title=f"龙虎榜同步失败 ({trade_date})",
+                content={
+                    "task": "top_list_sync",
+                    "trade_date": trade_date,
+                    "error": str(e),
+                },
+                notification_type="task_failed",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+
+
+def sync_top_inst_task():
+    """
+    龙虎榜机构交易名单同步任务
+
+    收盘后获取当日龙虎榜机构交易名单数据
+    """
+    from datetime import datetime
+    from app.services.topinst_sync_service import sync_top_inst_to_db
+    from app.services.config_service import ConfigService
+
+    logger.info("Starting top inst sync task...")
+
+    # 读取配置
+    settings = ConfigService.get_top_inst_sync_settings()
+    enabled = settings.get("enabled", True)
+
+    if not enabled:
+        logger.info("Top inst sync is disabled")
+        return
+
+    # 获取今日日期
+    trade_date = datetime.now().strftime("%Y%m%d")
+
+    # 非交易日跳过
+    from app.services.topinst_service import is_trade_day
+    if not is_trade_day(trade_date):
+        logger.info(f"Today {trade_date} is not a trading day, skip top inst sync")
+        return
+
+    try:
+        # 不传入日期，由服务自动获取最近交易日（即今天）
+        result = sync_top_inst_to_db()
+        logger.info(
+            f"Top inst sync completed: date={result.get('trade_date', trade_date)}, "
+            f"inserted={result['inserted']}, total={result['total']}"
+        )
+        # 发送通知
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title=f"龙虎榜机构交易名单同步完成 ({result.get('trade_date', trade_date)})",
+                content={
+                    "task": "top_inst_sync",
+                    "trade_date": result.get('trade_date', trade_date),
+                    "inserted": result.get('inserted', 0),
+                    "total": result.get('total', 0),
+                },
+                notification_type="task_success",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+    except Exception as e:
+        logger.error(f"Top inst sync failed: {e}")
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title=f"龙虎榜机构交易名单同步失败 ({trade_date})",
+                content={
+                    "task": "top_inst_sync",
+                    "trade_date": trade_date,
+                    "error": str(e),
+                },
+                notification_type="task_failed",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+
+
+def sync_hot_money_task():
+    """
+    游资名录数据同步任务
+
+    每日自动同步游资名录数据
+    """
+    from datetime import datetime
+    from app.services.hotmoney_sync_service import sync_hot_money_to_db
+    from app.services.config_service import ConfigService
+
+    logger.info("Starting hot money sync task...")
+
+    # 读取配置
+    settings = ConfigService.get_hot_money_sync_settings()
+    enabled = settings.get("enabled", True)
+
+    if not enabled:
+        logger.info("Hot money sync is disabled")
+        return
+
+    try:
+        result = sync_hot_money_to_db()
+        logger.info(
+            f"Hot money sync completed: "
+            f"inserted={result['inserted']}, updated={result['updated']}, total={result['total']}"
+        )
+        # 发送通知
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title="游资名录同步完成",
+                content={
+                    "task": "hot_money_sync",
+                    "inserted": result.get('inserted', 0),
+                    "updated": result.get('updated', 0),
+                    "total": result.get('total', 0),
+                },
+                notification_type="task_success",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+    except Exception as e:
+        logger.error(f"Hot money sync failed: {e}")
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title="游资名录同步失败",
+                content={
+                    "task": "hot_money_sync",
+                    "error": str(e),
+                },
+                notification_type="task_failed",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
+
 
 def sync_kline_task():
     """收盘后批量同步 K线数据任务"""
@@ -187,9 +398,35 @@ def sync_kline_task():
             f"Kline sync completed: total={result['total']}, "
             f"success={result['success']}, failed={result['failed']}"
         )
-
+        # 发送通知
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title="K线数据同步完成",
+                content={
+                    "task": "kline_sync",
+                    "total": result.get('total', 0),
+                    "success": result.get('success', 0),
+                    "failed": result.get('failed', 0),
+                },
+                notification_type="task_success",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
     except Exception as e:
         logger.error(f"Kline sync failed: {e}")
+        try:
+            from app.services.notification_service import send_task_notification
+            send_task_notification(
+                title="K线数据同步失败",
+                content={
+                    "task": "kline_sync",
+                    "error": str(e),
+                },
+                notification_type="task_failed",
+            )
+        except Exception as notify_err:
+            logger.warning(f"Notification send failed: {notify_err}")
 
 
 def reload_news_sync_jobs():
@@ -259,6 +496,15 @@ def start_scheduler():
     # 首先根据配置添加新闻同步任务
     reload_news_sync_jobs()
 
+    # 添加龙虎榜同步任务
+    reload_top_list_sync_jobs()
+
+    # 添加龙虎榜机构交易名单同步任务
+    reload_top_inst_sync_jobs()
+
+    # 添加游资名录同步任务
+    reload_hot_money_sync_jobs()
+
     # K线同步 - 收盘后 15:30
     scheduler.add_job(
         sync_kline_task,
@@ -279,6 +525,150 @@ def start_scheduler():
 
     scheduler.start()
     logger.info("Scheduler started")
+
+
+def reload_top_list_sync_jobs():
+    """
+    重新加载龙虎榜同步任务
+    只支持固定时间模式
+    """
+    global scheduler
+
+    if not scheduler:
+        logger.warning("Scheduler not initialized, cannot reload jobs")
+        return
+
+    try:
+        from app.services.config_service import ConfigService
+        settings = ConfigService.get_top_list_sync_settings()
+
+        enabled = settings.get("enabled", True)
+        fixed_times = settings.get("fixed_times", ["15:30", "16:00", "17:00"])
+
+        # 移除旧的同步任务
+        for i in range(10):  # 最多10个时间点
+            try:
+                scheduler.remove_job(f"top_list_sync_{i}")
+            except:
+                pass
+
+        if not enabled:
+            logger.info("Top list sync is disabled")
+            return
+
+        # 添加固定时间任务
+        for i, time_str in enumerate(fixed_times):
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                scheduler.add_job(
+                    sync_top_list_task,
+                    trigger=CronTrigger(hour=hour, minute=minute),
+                    id=f"top_list_sync_{i}",
+                    name=f"Top List Sync at {time_str}",
+                    replace_existing=True
+                )
+                logger.info(f"Top list sync job configured: {time_str}")
+            except Exception as e:
+                logger.error(f"Failed to add top list job for {time_str}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to reload top list sync jobs: {e}")
+
+
+def reload_top_inst_sync_jobs():
+    """
+    重新加载龙虎榜机构交易名单同步任务
+    只支持固定时间模式
+    """
+    global scheduler
+
+    if not scheduler:
+        logger.warning("Scheduler not initialized, cannot reload jobs")
+        return
+
+    try:
+        from app.services.config_service import ConfigService
+        settings = ConfigService.get_top_inst_sync_settings()
+
+        enabled = settings.get("enabled", True)
+        fixed_times = settings.get("fixed_times", ["15:30", "16:00", "17:00"])
+
+        # 移除旧的同步任务
+        for i in range(10):  # 最多10个时间点
+            try:
+                scheduler.remove_job(f"top_inst_sync_{i}")
+            except:
+                pass
+
+        if not enabled:
+            logger.info("Top inst sync is disabled")
+            return
+
+        # 添加固定时间任务
+        for i, time_str in enumerate(fixed_times):
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                scheduler.add_job(
+                    sync_top_inst_task,
+                    trigger=CronTrigger(hour=hour, minute=minute),
+                    id=f"top_inst_sync_{i}",
+                    name=f"Top Inst Sync at {time_str}",
+                    replace_existing=True
+                )
+                logger.info(f"Top inst sync job configured: {time_str}")
+            except Exception as e:
+                logger.error(f"Failed to add top inst job for {time_str}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to reload top inst sync jobs: {e}")
+
+
+def reload_hot_money_sync_jobs():
+    """
+    重新加载游资名录同步任务
+    只支持固定时间模式
+    """
+    global scheduler
+
+    if not scheduler:
+        logger.warning("Scheduler not initialized, cannot reload jobs")
+        return
+
+    try:
+        from app.services.config_service import ConfigService
+        settings = ConfigService.get_hot_money_sync_settings()
+
+        enabled = settings.get("enabled", True)
+        fixed_times = settings.get("fixed_times", ["06:00"])
+
+        # 移除旧的同步任务
+        for i in range(10):  # 最多10个时间点
+            try:
+                scheduler.remove_job(f"hot_money_sync_{i}")
+            except:
+                pass
+
+        if not enabled:
+            logger.info("Hot money sync is disabled")
+            return
+
+        # 添加固定时间任务
+        for i, time_str in enumerate(fixed_times):
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                scheduler.add_job(
+                    sync_hot_money_task,
+                    trigger=CronTrigger(hour=hour, minute=minute),
+                    id=f"hot_money_sync_{i}",
+                    name=f"Hot Money Sync at {time_str}",
+                    replace_existing=True
+                )
+                logger.info(f"Hot money sync job configured: {time_str}")
+            except Exception as e:
+                logger.error(f"Failed to add hot money job for {time_str}: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to reload hot money sync jobs: {e}")
 
 
 def stop_scheduler():

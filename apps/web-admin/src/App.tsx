@@ -4,7 +4,7 @@
 
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 
 // 布局
@@ -16,11 +16,22 @@ import Login from './pages/Login'
 import Overview from './pages/Overview'
 import Users from './pages/Users'
 import Agents from './pages/Agents'
+import AgentCreate from './pages/Agents/AgentCreate'
 import Rebates from './pages/Rebates'
 import Settings from './pages/Settings'
 import DataSource from './pages/DataSource'
 import NewsManagement from './pages/DataSource/NewsManagement'
-import SyncSettings from './pages/DataSource/SyncSettings'
+import NewsDetail from './pages/DataSource/NewsDetail'
+import TopListManagement from './pages/DataSource/TopListManagement'
+import TopInstManagement from './pages/DataSource/TopInstManagement'
+import HotMoneyManagement from './pages/DataSource/HotMoneyManagement'
+
+// 系统设置子页面
+import RebateSettings from './pages/Settings/RebateSettings'
+import PricingSettings from './pages/Settings/PricingSettings'
+import SystemSettings from './pages/Settings/SystemSettings'
+import NotificationSettings from './pages/Settings/NotificationSettings'
+import AdminAccounts from './pages/Settings/AdminAccounts'
 
 // Ant Design 主题配置
 const theme = {
@@ -38,8 +49,9 @@ const theme = {
 const App: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
-      <BrowserRouter>
-        <Routes>
+      <AntdApp>
+        <BrowserRouter>
+          <Routes>
           {/* 登录页面 */}
           <Route path="/login" element={<Login />} />
 
@@ -55,18 +67,30 @@ const App: React.FC = () => {
             <Route index element={<Overview />} />
             <Route path="users" element={<Users />} />
             <Route path="agents" element={<Agents />} />
+            <Route path="agents/create" element={<AgentCreate />} />
             <Route path="rebates" element={<Rebates />} />
             <Route path="analytics" element={<div>数据统计（开发中）</div>} />
+            {/* 系统设置 - 旧页面，可以保留或重定向 */}
             <Route path="settings" element={<Settings />} />
             <Route path="datasource" element={<DataSource />} />
             <Route path="datasource/news" element={<NewsManagement />} />
-            <Route path="datasource/settings" element={<SyncSettings />} />
+            <Route path="datasource/news/:id" element={<NewsDetail />} />
+            <Route path="datasource/top-list" element={<TopListManagement />} />
+            <Route path="datasource/top-inst" element={<TopInstManagement />} />
+            <Route path="datasource/hot-money" element={<HotMoneyManagement />} />
+            {/* 系统设置 - 新页面 */}
+            <Route path="settings/rebate" element={<RebateSettings />} />
+            <Route path="settings/pricing" element={<PricingSettings />} />
+            <Route path="settings/system" element={<SystemSettings />} />
+            <Route path="settings/notification" element={<NotificationSettings />} />
+            <Route path="settings/admin-accounts" element={<AdminAccounts />} />
           </Route>
 
           {/* 404 重定向 */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   )
 }

@@ -81,13 +81,24 @@ def save_news_to_db(news_list: List[Dict[str, Any]], news_date: str = None, sour
                     # 已存在，跳过
                     continue
                 
+                # 解析发布时间（从 publish_time 中提取 HH:MM 部分）
+                publish_time_raw = item.get("publish_time", "")
+                publish_time = None
+                if publish_time_raw:
+                    # 尝试从各种格式中提取 HH:MM
+                    import re
+                    time_match = re.search(r'(\d{2}):(\d{2})', str(publish_time_raw))
+                    if time_match:
+                        publish_time = f"{time_match.group(1)}:{time_match.group(2)}"
+
                 # 创建新记录
                 news = News(
                     title=title if title else None,
                     content=content,
                     source=item_source,
                     source_url=item.get("url", item.get("source_url", "")),
-                    news_date=news_date
+                    news_date=news_date,
+                    publish_time=publish_time
                 )
                 
                 db.add(news)

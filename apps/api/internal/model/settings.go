@@ -8,7 +8,10 @@ import (
 type SettingsType string
 
 const (
-	SettingsTypeNewsSync SettingsType = "news_sync"
+	SettingsTypeNewsSync     SettingsType = "news_sync"
+	SettingsTypeTopListSync  SettingsType = "top_list_sync"
+	SettingsTypeTopInstSync  SettingsType = "top_inst_sync"
+	SettingsTypeHotMoneySync SettingsType = "hot_money_sync"
 )
 
 // Settings 系统设置模型
@@ -38,4 +41,31 @@ type NewsSyncSettings struct {
 
 	// 数据源: ["global_futu", "global_ths", "global_cls", "global_sina"]
 	Sources []string `json:"sources"`
+}
+
+// TopListSyncSettings 龙虎榜同步设置结构
+// 只能修改固定获取时间
+type TopListSyncSettings struct {
+	// 是否启用
+	Enabled bool `json:"enabled"`
+	// 固定时间列表，如 ["15:30"]
+	FixedTimes []string `json:"fixed_times"`
+}
+
+// TopInstSyncSettings 龙虎榜机构交易名单同步设置结构
+// 只能修改固定获取时间
+type TopInstSyncSettings struct {
+	// 是否启用
+	Enabled bool `json:"enabled"`
+	// 固定时间列表，如 ["15:30"]
+	FixedTimes []string `json:"fixed_times"`
+}
+
+// HotMoneySyncSettings 游资名录同步设置结构
+// 只能修改固定获取时间
+type HotMoneySyncSettings struct {
+	// 是否启用
+	Enabled bool `json:"enabled"`
+	// 固定时间列表，如 ["06:00"]
+	FixedTimes []string `json:"fixed_times"`
 }

@@ -38,6 +38,19 @@ func (r *AgentRepository) GetByID(ctx context.Context, id uint) (*model.Agent, e
 	return &agent, nil
 }
 
+// GetByName 根据名称获取Agent（用于唯一性校验）
+func (r *AgentRepository) GetByName(ctx context.Context, name string) (*model.Agent, error) {
+	var agent model.Agent
+	err := r.db.WithContext(ctx).Where("name = ?", name).First(&agent).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &agent, nil
+}
+
 // List 获取Agent列表
 func (r *AgentRepository) List(ctx context.Context, filters map[string]interface{}, page, pageSize int) ([]*model.Agent, int64, error) {
 	var agents []*model.Agent
@@ -66,6 +79,28 @@ func (r *AgentRepository) List(ctx context.Context, filters map[string]interface
 
 	offset := (page - 1) * pageSize
 	err = query.Offset(offset).Limit(pageSize).Find(&agents).Error
+	return agents, total, err
+}
+
+// ListAdmin 管理员获取Agent列表（支持搜索，不限制状态）
+func (r *AgentRepository) ListAdmin(ctx context.Context, filters map[string]interface{}, page, pageSize int) ([]*model.Agent, int64, error) {
+	var agents []*model.Agent
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&model.Agent{})
+
+	// 搜索名称或描述
+	if search, ok := filters["search"].(string); ok && search != "" {
+		query = query.Where("name ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	err = query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&agents).Error
 	return agents, total, err
 }
 

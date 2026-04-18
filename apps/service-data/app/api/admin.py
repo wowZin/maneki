@@ -53,8 +53,14 @@ def sync_kline_manual(request: SyncRequest):
                 message=f"Batch sync completed: {result['success']}/{result['total']} success",
                 data=result
             )
-    
+
     except Exception as e:
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="K线数据同步失败",
+            content={"error": str(e), "source": request.source, "days": request.days},
+            notification_type="task_failed"
+        )
         return SyncResponse(
             code=-1,
             message=f"Sync failed: {str(e)}",
@@ -159,14 +165,194 @@ def sync_news_manual():
 
     try:
         result = sync_news_to_db()
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="新闻资讯同步完成",
+            content={"inserted": result.get("inserted"), "total": result.get("total")},
+            notification_type="task_success"
+        )
         return SyncResponse(
             code=0,
             message=f"News sync completed: {result['inserted']}/{result['total']} inserted",
             data=result
         )
     except Exception as e:
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="新闻资讯同步失败",
+            content={"error": str(e)},
+            notification_type="task_failed"
+        )
         return SyncResponse(
             code=-1,
             message=f"Sync failed: {str(e)}",
             data={}
         )
+
+
+@router.post("/admin/sync/top-list", response_model=SyncResponse)
+def sync_top_list_manual(trade_date: str = None):
+    """
+    手动触发龙虎榜数据同步
+
+    Args:
+        trade_date: 交易日期 (YYYYMMDD)，默认为最近交易日
+    """
+    from app.services.toplist_sync_service import sync_top_list_to_db
+
+    try:
+        result = sync_top_list_to_db(trade_date)
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="龙虎榜数据同步完成",
+            content={"trade_date": trade_date or result.get("trade_date"), "inserted": result.get("inserted"), "total": result.get("total")},
+            notification_type="task_success"
+        )
+        return SyncResponse(
+            code=0,
+            message=f"Top list sync completed: {result['inserted']}/{result['total']} inserted",
+            data=result
+        )
+    except Exception as e:
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="龙虎榜数据同步失败",
+            content={"trade_date": trade_date, "error": str(e)},
+            notification_type="task_failed"
+        )
+        return SyncResponse(
+            code=-1,
+            message=f"Sync failed: {str(e)}",
+            data={}
+        )
+
+
+@router.get("/admin/top-list/stats")
+def get_top_list_stats(trade_date: str = None):
+    """
+    获取龙虎榜数据统计
+    """
+    from app.services.toplist_sync_service import get_top_list_stats
+
+    try:
+        result = get_top_list_stats(trade_date)
+        return {
+            "code": 0,
+            "data": result
+        }
+    except Exception as e:
+        return {
+            "code": -1,
+            "message": str(e)
+        }
+
+
+@router.post("/admin/sync/top-inst", response_model=SyncResponse)
+def sync_top_inst_manual(trade_date: str = None):
+    """
+    手动触发龙虎榜机构交易名单同步
+
+    Args:
+        trade_date: 交易日期 (YYYYMMDD)，默认为最近交易日
+    """
+    from app.services.topinst_sync_service import sync_top_inst_to_db
+
+    try:
+        result = sync_top_inst_to_db(trade_date)
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="龙虎榜机构交易名单同步完成",
+            content={"trade_date": trade_date or result.get("trade_date"), "inserted": result.get("inserted"), "total": result.get("total")},
+            notification_type="task_success"
+        )
+        return SyncResponse(
+            code=0,
+            message=f"Top inst sync completed: {result['inserted']}/{result['total']} inserted",
+            data=result
+        )
+    except Exception as e:
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="龙虎榜机构交易名单同步失败",
+            content={"trade_date": trade_date, "error": str(e)},
+            notification_type="task_failed"
+        )
+        return SyncResponse(
+            code=-1,
+            message=f"Sync failed: {str(e)}",
+            data={}
+        )
+
+
+@router.get("/admin/top-inst/stats")
+def get_top_inst_stats(trade_date: str = None):
+    """
+    获取龙虎榜机构交易名单统计
+    """
+    from app.services.topinst_sync_service import get_top_inst_stats
+
+    try:
+        result = get_top_inst_stats(trade_date)
+        return {
+            "code": 0,
+            "data": result
+        }
+    except Exception as e:
+        return {
+            "code": -1,
+            "message": str(e)
+        }
+
+
+@router.post("/admin/sync/hot-money", response_model=SyncResponse)
+def sync_hot_money_manual():
+    """
+    手动触发游资名录数据同步
+    """
+    from app.services.hotmoney_sync_service import sync_hot_money_to_db
+
+    try:
+        result = sync_hot_money_to_db()
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="游资名录同步完成",
+            content={"inserted": result.get("inserted"), "updated": result.get("updated"), "total": result.get("total")},
+            notification_type="task_success"
+        )
+        return SyncResponse(
+            code=0,
+            message=f"Hot money sync completed: {result['inserted']}/{result['total']} inserted, {result['updated']} updated",
+            data=result
+        )
+    except Exception as e:
+        from app.services.notification_service import send_task_notification
+        send_task_notification(
+            title="游资名录同步失败",
+            content={"error": str(e)},
+            notification_type="task_failed"
+        )
+        return SyncResponse(
+            code=-1,
+            message=f"Sync failed: {str(e)}",
+            data={}
+        )
+
+
+@router.get("/admin/hot-money/stats")
+def get_hot_money_stats():
+    """
+    获取游资名录数据统计
+    """
+    from app.services.hotmoney_sync_service import get_hot_money_stats
+
+    try:
+        result = get_hot_money_stats()
+        return {
+            "code": 0,
+            "data": result
+        }
+    except Exception as e:
+        return {
+            "code": -1,
+            "message": str(e)
+        }

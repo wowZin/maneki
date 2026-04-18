@@ -5,12 +5,11 @@ import React from 'react'
 import { Card, Row, Col, Statistic, Badge, Button, Space } from 'antd'
 import {
   DatabaseOutlined,
-  CloudSyncOutlined,
   FileTextOutlined,
   BarChartOutlined,
-  SyncOutlined,
-  SettingOutlined,
-  ClockCircleOutlined,
+  TrophyOutlined,
+  BankOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 
@@ -84,15 +83,42 @@ const DataSource: React.FC = () => {
           <Col xs={24} sm={12} md={8}>
             <Card
               hoverable
-              onClick={() => navigate('/admin/datasource/settings')}
+              onClick={() => navigate('/admin/datasource/top-list')}
             >
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <ClockCircleOutlined style={{ fontSize: 32, color: '#faad14' }} />
+                <TrophyOutlined style={{ fontSize: 32, color: '#fa541c' }} />
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 'bold' }}>同步设置</div>
-                  <div style={{ color: '#666' }}>配置新闻同步时间和数据源</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold' }}>龙虎榜数据</div>
+                  <div style={{ color: '#666' }}>管理龙虎榜数据、查看交易明细</div>
                 </div>
-                <Button type="primary" icon={<SettingOutlined />}>配置</Button>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Card
+              hoverable
+              onClick={() => navigate('/admin/datasource/top-inst')}
+            >
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <BankOutlined style={{ fontSize: 32, color: '#722ed1' }} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold' }}>龙虎榜机构交易名单</div>
+                  <div style={{ color: '#666' }}>管理龙虎榜机构交易名单数据</div>
+                </div>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Card
+              hoverable
+              onClick={() => navigate('/admin/datasource/hot-money')}
+            >
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <TeamOutlined style={{ fontSize: 32, color: '#13c2c2' }} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold' }}>游资名录</div>
+                  <div style={{ color: '#666' }}>管理游资信息、关联机构数据</div>
+                </div>
               </Space>
             </Card>
           </Col>
