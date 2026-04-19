@@ -2,7 +2,7 @@
  * 数据源管理入口
  */
 import React from 'react'
-import { Card, Row, Col, Statistic, Badge, Button, Space } from 'antd'
+import { Card, Row, Col, Statistic, Badge, Space } from 'antd'
 import {
   DatabaseOutlined,
   FileTextOutlined,

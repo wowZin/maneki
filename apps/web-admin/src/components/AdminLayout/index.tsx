@@ -20,11 +20,11 @@ import {
   TrophyOutlined,
   DollarOutlined,
   SafetyOutlined,
-  NotificationOutlined,
   BankOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  AuditOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
@@ -142,7 +142,8 @@ const AdminLayout: React.FC = () => {
     </div>
   )
 
-  const menuItems = [
+  // 基础菜单项（所有管理员可见）
+  const baseMenuItems = [
     {
       key: '/',
       icon: <DashboardOutlined />,
@@ -203,33 +204,25 @@ const AdminLayout: React.FC = () => {
       ],
     },
     {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '系统配置',
-      children: [
-        {
-          key: '/settings/pricing',
-          icon: <DollarOutlined />,
-          label: '定价配置',
-        },
-        {
-          key: '/settings/system',
-          icon: <SettingOutlined />,
-          label: '元配置',
-        },
-        {
-          key: '/settings/notification',
-          icon: <NotificationOutlined />,
-          label: '通知配置',
-        },
-        {
-          key: '/settings/admin-accounts',
-          icon: <SafetyOutlined />,
-          label: '管理员账户',
-        },
-      ],
+      key: '/audit-logs',
+      icon: <AuditOutlined />,
+      label: '操作日志',
     },
   ]
+
+  // 超级管理员专属菜单
+  const superMenuItems = [
+    {
+      key: '/admin-settings',
+      icon: <SafetyOutlined />,
+      label: '管理员设置',
+    },
+  ]
+
+  // 根据角色合并菜单
+  const menuItems = user?.role === 'super'
+    ? [...baseMenuItems, ...superMenuItems]
+    : baseMenuItems
 
   const userMenuItems = [
     {
@@ -336,9 +329,12 @@ const AdminLayout: React.FC = () => {
             >
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar size="small" style={{ backgroundColor: token.colorPrimary }}>
-                  {user?.email?.[0]?.toUpperCase() || 'A'}
+                  {user?.name?.[0]?.toUpperCase() || 'A'}
                 </Avatar>
-                <span>{user?.email || '管理员'}</span>
+                <span>{user?.name || '管理员'}</span>
+                {user?.role === 'super' && (
+                  <span style={{ fontSize: 12, color: token.colorPrimary }}>(超管)</span>
+                )}
               </Space>
             </Dropdown>
           </Space>

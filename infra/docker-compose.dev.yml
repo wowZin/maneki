@@ -2,8 +2,6 @@
 # 适用于 Mac/Windows/Linux 开发环境
 # 资源限制适配 8GB 内存的开发机
 
-version: '3.8'
-
 services:
   # TimescaleDB - 时序数据库，用于存储行情数据和复盘记录
   timescaledb:

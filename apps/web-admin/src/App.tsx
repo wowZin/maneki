@@ -13,8 +13,8 @@ import AdminRoute from './components/AdminRoute'
 
 // 页面
 import Login from './pages/Login'
+import ChangePassword from './pages/ChangePassword'
 import Overview from './pages/Overview'
-import Users from './pages/Users'
 import Agents from './pages/Agents'
 import AgentCreate from './pages/Agents/AgentCreate'
 import Rebates from './pages/Rebates'
@@ -32,6 +32,12 @@ import PricingSettings from './pages/Settings/PricingSettings'
 import SystemSettings from './pages/Settings/SystemSettings'
 import NotificationSettings from './pages/Settings/NotificationSettings'
 import AdminAccounts from './pages/Settings/AdminAccounts'
+
+// 新增页面
+import AdminListPage from './pages/AdminSettings/AdminListPage'
+import UserListPage from './pages/UserManagement/UserListPage'
+import UserDetailPage from './pages/UserManagement/UserDetailPage'
+import AuditLogPage from './pages/AuditLog/AuditLogPage'
 
 // Ant Design 主题配置
 const theme = {
@@ -54,6 +60,7 @@ const App: React.FC = () => {
           <Routes>
           {/* 登录页面 */}
           <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ChangePassword />} />
 
           {/* 管理后台路由 */}
           <Route
@@ -65,7 +72,8 @@ const App: React.FC = () => {
             }
           >
             <Route index element={<Overview />} />
-            <Route path="users" element={<Users />} />
+            <Route path="users" element={<UserListPage />} />
+            <Route path="users/:id" element={<UserDetailPage />} />
             <Route path="agents" element={<Agents />} />
             <Route path="agents/create" element={<AgentCreate />} />
             <Route path="rebates" element={<Rebates />} />
@@ -84,6 +92,9 @@ const App: React.FC = () => {
             <Route path="settings/system" element={<SystemSettings />} />
             <Route path="settings/notification" element={<NotificationSettings />} />
             <Route path="settings/admin-accounts" element={<AdminAccounts />} />
+            {/* 新增路由 */}
+            <Route path="admin-settings" element={<AdminListPage />} />
+            <Route path="audit-logs" element={<AuditLogPage />} />
           </Route>
 
           {/* 404 重定向 */}

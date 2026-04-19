@@ -5,19 +5,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/maneki/api/internal/middleware"
 	"github.com/maneki/api/internal/model"
-	"github.com/maneki/api/internal/repository"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/maneki/api/internal/service"
 )
 
 // UserHandler 用户管理处理器
 type UserHandler struct {
-	userRepo *repository.UserRepository
+	userSvc  *service.UserService
+	auditSvc *service.AuditService
 }
 
 // NewUserHandler 创建用户管理处理器
-func NewUserHandler(userRepo *repository.UserRepository) *UserHandler {
-	return &UserHandler{userRepo: userRepo}
+func NewUserHandler(userSvc *service.UserService, auditSvc *service.AuditService) *UserHandler {
+	return &UserHandler{userSvc: userSvc, auditSvc: auditSvc}
 }
 
 // ListUsersRequest 用户列表查询请求
@@ -81,45 +82,22 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	// 设置默认值
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 || req.PageSize > 100 {
-		req.PageSize = 20
-	}
-
-	ctx := c.Request.Context()
-
-	var users []*model.User
-	var total int64
-	var err error
-
-	// 构建查询条件
-	if req.Search != "" || req.IsSuperuser != nil || req.IsActive != nil || req.VIPLevel != nil {
-		// 使用搜索功能
-		users, total, err = h.userRepo.SearchWithFilters(ctx, req.Search, req.IsSuperuser, req.IsActive, req.VIPLevel, req.Page, req.PageSize)
-	} else {
-		// 普通列表
-		users, total, err = h.userRepo.List(ctx, req.Page, req.PageSize)
-	}
-
+	result, err := h.userSvc.ListUsers(c.Request.Context(), req.Search, req.IsSuperuser, req.IsActive, req.VIPLevel, req.Page, req.PageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
 		return
 	}
 
-	// 转换为响应格式
 	var response []UserResponse
-	for _, user := range users {
+	for _, user := range result.List {
 		response = append(response, userToResponse(user))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":  response,
-		"total": total,
-		"page":  req.Page,
-		"size":  req.PageSize,
+		"total": result.Total,
+		"page":  result.Page,
+		"size":  result.PageSize,
 	})
 }
 
@@ -133,14 +111,13 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userRepo.GetByID(c.Request.Context(), id)
+	user, err := h.userSvc.GetUser(c.Request.Context(), id)
 	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
@@ -155,44 +132,24 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	// 检查邮箱是否已存在
-	existingUser, _ := h.userRepo.GetByEmail(ctx, req.Email)
-	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
-		return
-	}
-
-	// 检查用户名是否已存在
-	existingUser, _ = h.userRepo.GetByUsername(ctx, req.Username)
-	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
-		return
-	}
-
-	// 加密密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := h.userSvc.CreateUser(c.Request.Context(), &service.CreateUserRequest{
+		Email:       req.Email,
+		Username:    req.Username,
+		Password:    req.Password,
+		Nickname:    req.Nickname,
+		Phone:       req.Phone,
+		IsSuperuser: req.IsSuperuser,
+		IsActive:    req.IsActive,
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
-		return
-	}
-
-	// 创建用户
-	user := &model.User{
-		Email:          req.Email,
-		Username:       req.Username,
-		Nickname:       req.Nickname,
-		Phone:          req.Phone,
-		HashedPassword: string(hashedPassword),
-		IsActive:       req.IsActive,
-		IsSuperuser:    req.IsSuperuser,
-		IsVerified:     true, // 管理员创建的用户默认已验证
-		RegisterSource: "admin",
-		VIPLevel:       0,
-	}
-
-	if err := h.userRepo.Create(ctx, user); err != nil {
+		if err.Error() == "email already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+			return
+		}
+		if err.Error() == "username already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
 	}
@@ -216,69 +173,31 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	// 获取现有用户
-	user, err := h.userRepo.GetByID(ctx, id)
+	user, err := h.userSvc.UpdateUser(c.Request.Context(), id, &service.UpdateUserRequest{
+		Email:       req.Email,
+		Username:    req.Username,
+		Nickname:    req.Nickname,
+		Phone:       req.Phone,
+		IsSuperuser: req.IsSuperuser,
+		IsActive:    req.IsActive,
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
-	// 检查是否尝试修改最后一个超管
-	if req.IsSuperuser != nil && !*req.IsSuperuser && user.IsSuperuser {
-		// 检查是否是最后一个超管
-		count, err := h.userRepo.CountSuperusers(ctx)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check superuser count"})
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		if count <= 1 {
+		if err.Error() == "cannot remove the last superuser" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove the last superuser"})
 			return
 		}
-	}
-
-	// 如果修改邮箱，检查是否已存在
-	if req.Email != "" && req.Email != user.Email {
-		existingUser, _ := h.userRepo.GetByEmail(ctx, req.Email)
-		if existingUser != nil {
+		if err.Error() == "email already exists" {
 			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
 			return
 		}
-		user.Email = req.Email
-	}
-
-	// 如果修改用户名，检查是否已存在
-	if req.Username != "" && req.Username != user.Username {
-		existingUser, _ := h.userRepo.GetByUsername(ctx, req.Username)
-		if existingUser != nil {
+		if err.Error() == "username already exists" {
 			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
 			return
 		}
-		user.Username = req.Username
-	}
-
-	// 更新字段
-	if req.Nickname != "" {
-		user.Nickname = req.Nickname
-	}
-	if req.Phone != "" {
-		user.Phone = req.Phone
-	}
-	if req.IsSuperuser != nil {
-		user.IsSuperuser = *req.IsSuperuser
-	}
-	if req.IsActive != nil {
-		user.IsActive = *req.IsActive
-	}
-
-	if err := h.userRepo.Update(ctx, user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 		return
 	}
@@ -296,41 +215,22 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	// 获取用户
-	user, err := h.userRepo.GetByID(ctx, id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
 	// 不能删除自己
 	currentUserID, _ := c.Get("user_id")
-	if currentUserID == user.ID.String() {
+	if currentUserID == userID {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete yourself"})
 		return
 	}
 
-	// 如果是超管，检查是否是最后一个
-	if user.IsSuperuser {
-		count, err := h.userRepo.CountSuperusers(ctx)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check superuser count"})
+	if err := h.userSvc.DeleteUser(c.Request.Context(), id); err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		if count <= 1 {
+		if err.Error() == "cannot delete the last superuser" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete the last superuser"})
 			return
 		}
-	}
-
-	if err := h.userRepo.Delete(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
@@ -354,32 +254,26 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	// 获取用户
-	user, err := h.userRepo.GetByID(ctx, id)
+	user, err := h.userSvc.GetUser(c.Request.Context(), id)
 	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
 		return
 	}
 
-	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
-	// 加密新密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
-		return
-	}
-
-	// 更新密码
-	user.HashedPassword = string(hashedPassword)
-	if err := h.userRepo.Update(ctx, user); err != nil {
+	if err := h.userSvc.ResetPassword(c.Request.Context(), id, req.NewPassword); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset password"})
 		return
+	}
+
+	// 记录审计日志
+	if h.auditSvc != nil {
+		adminID, _ := middleware.GetCurrentAdminID(c)
+		adminName, _ := middleware.GetCurrentAdminName(c)
+		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, model.AuditActionResetUserPassword, model.AuditTargetUser, nil, user.Username, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
@@ -401,47 +295,39 @@ func (h *UserHandler) ToggleUserStatus(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	// 获取用户
-	user, err := h.userRepo.GetByID(ctx, id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
-		return
-	}
-
-	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
 	// 不能禁用自己
 	currentUserID, _ := c.Get("user_id")
-	if currentUserID == user.ID.String() && action == "disable" {
+	if currentUserID == userID && action == "disable" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot disable yourself"})
 		return
 	}
 
-	// 设置新状态
 	newStatus := action == "enable"
-
-	// 如果是超管，检查是否是最后一个活跃的超管
-	if user.IsSuperuser && !newStatus {
-		activeCount, err := h.userRepo.CountActiveSuperusers(ctx)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check active superuser count"})
+	user, err := h.userSvc.ToggleUserStatus(c.Request.Context(), id, newStatus)
+	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		if activeCount <= 1 {
+		if err.Error() == "cannot disable the last active superuser" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot disable the last active superuser"})
 			return
 		}
-	}
-
-	user.IsActive = newStatus
-	if err := h.userRepo.Update(ctx, user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user status"})
 		return
+	}
+
+	// 记录审计日志
+	if h.auditSvc != nil {
+		adminID, _ := middleware.GetCurrentAdminID(c)
+		adminName, _ := middleware.GetCurrentAdminName(c)
+		var auditAction model.AuditAction
+		if newStatus {
+			auditAction = model.AuditActionEnableUser
+		} else {
+			auditAction = model.AuditActionDisableUser
+		}
+		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, auditAction, model.AuditTargetUser, nil, user.Username, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -471,9 +357,7 @@ func userToResponse(user *model.User) UserResponse {
 
 // GetUserStats 获取用户统计信息
 func (h *UserHandler) GetUserStats(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	stats, err := h.userRepo.GetStats(ctx)
+	stats, err := h.userSvc.GetUserStats(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get stats"})
 		return

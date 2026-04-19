@@ -20,7 +20,6 @@ import {
   Modal,
   TimePicker,
   Divider,
-  Switch,
   Radio,
   InputNumber,
 } from 'antd'

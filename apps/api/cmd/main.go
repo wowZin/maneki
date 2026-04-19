@@ -47,6 +47,8 @@ func main() {
 
 	// 初始化仓库
 	userRepo := repository.NewUserRepository(db)
+	adminRepo := repository.NewAdminRepository(db)
+	auditRepo := repository.NewAuditLogRepository(db)
 	agentRepo := repository.NewAgentRepository(db)
 	weightRepo := repository.NewAgentWeightRepository(db)
 	subscriptionRepo := repository.NewAgentSubscriptionRepository(db)
@@ -60,14 +62,23 @@ func main() {
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
 
+	// 初始化服务
+	adminAuthSvc := service.NewAdminAuthService(cfg, adminRepo, redisClient)
+	adminSvc := service.NewAdminService(adminRepo, redisClient)
+	auditSvc := service.NewAuditService(auditRepo)
+	userSvc := service.NewUserService(userRepo)
+
 	// 初始化处理器
 	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient)
+	adminAuthHandler := handler.NewAdminAuthHandler(adminAuthSvc, auditSvc)
+	adminMgmtHandler := handler.NewAdminMgmtHandler(adminSvc, auditSvc)
+	auditHandler := handler.NewAuditHandler(auditSvc)
 	agentHandler := handler.NewAgentHandler(agentRepo, weightRepo, subscriptionRepo)
 	stockHandler := handler.NewStockHandler(dataProvider)
 	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo, topListRepo, topInstRepo, hotMoneyRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
-	userHandler := handler.NewUserHandler(userRepo)
+	userHandler := handler.NewUserHandler(userSvc, auditSvc)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 
 	// 创建Gin路由
@@ -75,9 +86,12 @@ func main() {
 
 	// 全局中间件
 	r.Use(gin.Recovery())
+	r.Use(middleware.ErrorHandler())
 	r.Use(middleware.Logger())
 	r.Use(middleware.CORS(cfg))
 	r.Use(middleware.SecurityHeaders())
+	r.NoRoute(middleware.NoRouteHandler())
+	r.NoMethod(middleware.NoMethodHandler())
 
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
@@ -90,10 +104,13 @@ func main() {
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
-		// 公开路由
+		// 公开路由 - 用户端
 		v1.POST("/auth/register", authHandler.Register)
 		v1.POST("/auth/login", authHandler.Login)
 		v1.POST("/auth/refresh", authHandler.RefreshToken)
+
+		// 公开路由 - 管理后台
+		v1.POST("/admin/auth/login", adminAuthHandler.AdminLogin)
 
 		// Agent公开路由
 		v1.GET("/agents", agentHandler.ListAgents)
@@ -125,10 +142,19 @@ func main() {
 			auth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
 		}
 
-		// 管理员路由
+		// 管理后台认证路由
+		adminAuth := v1.Group("/admin/auth")
+		adminAuth.Use(middleware.AdminSystemAuthMiddleware(cfg, redisClient))
+		{
+			adminAuth.POST("/logout", adminAuthHandler.AdminLogout)
+			adminAuth.POST("/change-password", adminAuthHandler.AdminChangePassword)
+			adminAuth.GET("/me", adminAuthHandler.AdminMe)
+		}
+
+		// 管理员路由（需要管理员权限）
 		admin := v1.Group("/admin")
-		admin.Use(middleware.AuthMiddleware(cfg))
-		admin.Use(middleware.AdminAuthMiddleware())
+		admin.Use(middleware.AdminSystemAuthMiddleware(cfg, redisClient))
+		admin.Use(middleware.AdminRequiredMiddleware())
 		{
 			// Dashboard
 			admin.GET("/dashboard/stats", dashboardHandler.GetDashboardStats)
@@ -188,6 +214,12 @@ func main() {
 			admin.GET("/settings/hot-money-sync", settingsHandler.GetHotMoneySyncSettings)
 			admin.POST("/settings/hot-money-sync", settingsHandler.SaveHotMoneySyncSettings)
 
+			// 管理员管理（仅超级管理员）
+			admin.GET("/admins", middleware.SuperAdminRequiredMiddleware(), adminMgmtHandler.ListAdmins)
+			admin.POST("/admins", middleware.SuperAdminRequiredMiddleware(), adminMgmtHandler.CreateAdmin)
+			admin.POST("/admins/:id/disable", middleware.SuperAdminRequiredMiddleware(), adminMgmtHandler.DisableAdmin)
+			admin.POST("/admins/:id/enable", middleware.SuperAdminRequiredMiddleware(), adminMgmtHandler.EnableAdmin)
+
 			// 用户管理
 			admin.GET("/users", userHandler.ListUsers)
 			admin.GET("/users/stats", userHandler.GetUserStats) // 必须在 /users/:id 之前
@@ -197,6 +229,10 @@ func main() {
 			admin.DELETE("/users/:id", userHandler.DeleteUser)
 			admin.POST("/users/:id/reset-password", userHandler.ResetPassword)
 			admin.POST("/users/:id/toggle/:action", userHandler.ToggleUserStatus)
+
+			// 审计日志
+			admin.GET("/audit-logs", auditHandler.ListAuditLogs)
+			admin.GET("/audit-logs/export", auditHandler.ExportAuditLogs)
 
 			// 通知管理
 			admin.GET("/notifications", notificationHandler.GetNotifications)
@@ -261,6 +297,8 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 	models := []interface{}{
 		&model.User{},
 		&model.UserAgent{},
+		&model.Admin{},
+		&model.AuditLog{},
 		&model.Stock{},
 		&model.KLine{},
 		&model.Signal{},

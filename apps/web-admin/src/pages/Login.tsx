@@ -7,28 +7,36 @@ import { useNavigate } from 'react-router-dom'
 import { Form, Input, Button, Card, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../stores/auth'
-import api from '../services/api'
+import { adminAuthApi } from '../api/auth'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuthStore()
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (values: { email: string; password: string }) => {
+  const handleSubmit = async (values: { name: string; password: string }) => {
     setLoading(true)
     try {
-      // 调用登录 API（Cookie 自动携带）
-      const response = await api.post('/v1/auth/login', {
-        email: values.email,
+      const { data: result } = await adminAuthApi.login({
+        name: values.name,
         password: values.password,
       })
 
-      // 登录成功，Cookie 已自动设置
-      login(response.data.user)
-      message.success('登录成功')
-      navigate('/')
+      if (result.code === 0 && result.data) {
+        login(result.data.admin)
+        message.success('登录成功')
+
+        // 如果强制修改密码，跳转到修改密码页
+        if (result.data.admin.force_change_password) {
+          navigate('/change-password')
+        } else {
+          navigate('/')
+        }
+      } else {
+        message.error(result.message || '登录失败')
+      }
     } catch (error: any) {
-      message.error('登录失败：' + (error.response?.data?.error || error.message))
+      message.error('登录失败：' + (error.response?.data?.message || error.message || '网络错误'))
     } finally {
       setLoading(false)
     }
@@ -57,15 +65,15 @@ const Login: React.FC = () => {
           size="large"
         >
           <Form.Item
-            name="email"
+            name="name"
             rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' }
+              { required: true, message: '请输入账户名称' },
+              { min: 3, message: '账户名称至少3个字符' },
             ]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="邮箱"
+              placeholder="账户名称"
               autoFocus
             />
           </Form.Item>

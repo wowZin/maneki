@@ -29,8 +29,8 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />
   }
 
-  // 不是超级用户
-  if (!user.is_superuser) {
+  // 不是管理员
+  if (user.role !== 'super' && user.role !== 'admin') {
     return (
       <Result
         status="403"
