@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -358,5 +359,189 @@ func (h *SettingsHandler) SaveHotMoneySyncSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "设置已保存",
+	})
+}
+
+// SystemSettingsResponse 系统设置响应
+type SystemSettingsResponse struct {
+	System model.SystemSettings `json:"system"`
+}
+
+// GetSettings 获取系统元信息配置
+func (h *SettingsHandler) GetSettings(c *gin.Context) {
+	settings, err := h.settingsRepo.GetSystemSettings(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    -1,
+			"message": "获取设置失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": SystemSettingsResponse{
+			System: *settings,
+		},
+	})
+}
+
+// UpdateSettingsRequest 更新系统设置请求
+type UpdateSettingsRequest struct {
+	System model.SystemSettings `json:"system" binding:"required"`
+}
+
+// UpdateSettings 更新系统元信息配置
+func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
+	var req UpdateSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 校验字段范围
+	if req.System.MonitorStockCount < 10 || req.System.MonitorStockCount > 1000 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "监控股票数量必须在 10-1000 之间",
+		})
+		return
+	}
+	if req.System.SignalThreshold < 0 || req.System.SignalThreshold > 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "信号置信度阈值必须在 0-1 之间",
+		})
+		return
+	}
+	if req.System.DataRetentionDays < 1 || req.System.DataRetentionDays > 365 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "数据保留天数必须在 1-365 之间",
+		})
+		return
+	}
+	if req.System.AgentDiscussionTimeout < 1 || req.System.AgentDiscussionTimeout > 60 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "Agent 讨论超时时间必须在 1-60 分钟之间",
+		})
+		return
+	}
+	if req.System.MaxAgents < 1 || req.System.MaxAgents > 50 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "最大 Agent 数量必须在 1-50 之间",
+		})
+		return
+	}
+
+	if err := h.settingsRepo.SaveSystemSettings(c.Request.Context(), &req.System); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    -1,
+			"message": "保存设置失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "设置已保存",
+	})
+}
+
+// GetPricingSettings 获取定价配置
+func (h *SettingsHandler) GetPricingSettings(c *gin.Context) {
+	settings, err := h.settingsRepo.GetPricingSettings(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    -1,
+			"message": "获取定价配置失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    settings,
+	})
+}
+
+// SavePricingSettingsRequest 保存定价配置请求
+type SavePricingSettingsRequest struct {
+	VIP  model.TierPricing `json:"vip" binding:"required"`
+	SVIP model.TierPricing `json:"svip" binding:"required"`
+}
+
+func validatePricingItem(item model.PricingItem, name string) error {
+	if item.Price < 0 {
+		return fmt.Errorf("%s 价格不能为负数", name)
+	}
+	if item.Discount < 0.1 || item.Discount > 1 {
+		return fmt.Errorf("%s 折扣必须在 0.1-1.0 之间", name)
+	}
+	return nil
+}
+
+// SavePricingSettings 保存定价配置
+func (h *SettingsHandler) SavePricingSettings(c *gin.Context) {
+	var req SavePricingSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    -1,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 校验 VIP
+	if err := validatePricingItem(req.VIP.Monthly, "VIP 月付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+	if err := validatePricingItem(req.VIP.Quarterly, "VIP 季付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+	if err := validatePricingItem(req.VIP.Yearly, "VIP 年付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+
+	// 校验 SVIP
+	if err := validatePricingItem(req.SVIP.Monthly, "SVIP 月付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+	if err := validatePricingItem(req.SVIP.Quarterly, "SVIP 季付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+	if err := validatePricingItem(req.SVIP.Yearly, "SVIP 年付"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "message": err.Error()})
+		return
+	}
+
+	settings := &model.PricingSettings{
+		VIP:  req.VIP,
+		SVIP: req.SVIP,
+	}
+
+	if err := h.settingsRepo.SavePricingSettings(c.Request.Context(), settings); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    -1,
+			"message": "保存定价配置失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "定价配置已保存",
 	})
 }

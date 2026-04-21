@@ -168,7 +168,7 @@ func (r *UserRepository) CountActiveSuperusers(ctx context.Context) (int64, erro
 }
 
 // SearchWithFilters 带过滤条件的搜索
-func (r *UserRepository) SearchWithFilters(ctx context.Context, keyword string, isSuperuser, isActive *bool, vipLevel *int, page, pageSize int) ([]*model.User, int64, error) {
+func (r *UserRepository) SearchWithFilters(ctx context.Context, keyword string, isSuperuser, isActive *bool, vipLevel *int, vipLevels []int, sortBy, sortOrder string, page, pageSize int) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
 
@@ -191,9 +191,14 @@ func (r *UserRepository) SearchWithFilters(ctx context.Context, keyword string, 
 		query = query.Where("is_active = ?", *isActive)
 	}
 
-	// VIP等级筛选
+	// VIP等级筛选（兼容旧版单选）
 	if vipLevel != nil {
 		query = query.Where("vip_level = ?", *vipLevel)
+	}
+
+	// VIP等级多选筛选
+	if len(vipLevels) > 0 {
+		query = query.Where("vip_level IN ?", vipLevels)
 	}
 
 	err := query.Count(&total).Error
@@ -202,7 +207,24 @@ func (r *UserRepository) SearchWithFilters(ctx context.Context, keyword string, 
 	}
 
 	offset := (page - 1) * pageSize
-	err = query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error
+
+	// 动态排序
+	orderClause := "created_at DESC"
+	if sortBy == "accuracy" {
+		if sortOrder == "asc" {
+			orderClause = "board_accuracy ASC NULLS LAST"
+		} else {
+			orderClause = "board_accuracy DESC NULLS LAST"
+		}
+	} else if sortBy == "created_at" {
+		if sortOrder == "asc" {
+			orderClause = "created_at ASC"
+		} else {
+			orderClause = "created_at DESC"
+		}
+	}
+
+	err = query.Order(orderClause).Offset(offset).Limit(pageSize).Find(&users).Error
 	return users, total, err
 }
 

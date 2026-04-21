@@ -178,3 +178,66 @@ func (r *SettingsRepository) GetDefaultHotMoneySyncSettings() *model.HotMoneySyn
 func (r *SettingsRepository) SaveHotMoneySyncSettings(ctx context.Context, settings *model.HotMoneySyncSettings) error {
 	return r.Set(ctx, "hot_money_sync", "config", settings)
 }
+
+// GetSystemSettings 获取系统级元信息配置
+func (r *SettingsRepository) GetSystemSettings(ctx context.Context) (*model.SystemSettings, error) {
+	var settings model.SystemSettings
+
+	// 尝试从数据库获取
+	if err := r.GetJSON(ctx, "system", "config", &settings); err != nil {
+		// 如果没有设置，返回默认值
+		return r.GetDefaultSystemSettings(), nil
+	}
+
+	return &settings, nil
+}
+
+// GetDefaultSystemSettings 获取默认系统级元信息配置
+func (r *SettingsRepository) GetDefaultSystemSettings() *model.SystemSettings {
+	return &model.SystemSettings{
+		MonitorStockCount:      100,
+		SignalThreshold:        0.7,
+		DataRetentionDays:      30,
+		AgentDiscussionTimeout: 10,
+		MaxAgents:              10,
+	}
+}
+
+// SaveSystemSettings 保存系统级元信息配置
+func (r *SettingsRepository) SaveSystemSettings(ctx context.Context, settings *model.SystemSettings) error {
+	return r.Set(ctx, "system", "config", settings)
+}
+
+// GetPricingSettings 获取定价配置
+func (r *SettingsRepository) GetPricingSettings(ctx context.Context) (*model.PricingSettings, error) {
+	var settings model.PricingSettings
+
+	// 尝试从数据库获取
+	if err := r.GetJSON(ctx, "pricing", "config", &settings); err != nil {
+		// 如果没有设置，返回默认值
+		return r.GetDefaultPricingSettings(), nil
+	}
+
+	return &settings, nil
+}
+
+// GetDefaultPricingSettings 获取默认定价配置
+func (r *SettingsRepository) GetDefaultPricingSettings() *model.PricingSettings {
+	return &model.PricingSettings{
+		VIP: model.TierPricing{
+			Monthly:   model.PricingItem{Price: 29.9, Discount: 1.0},
+			Quarterly: model.PricingItem{Price: 79.9, Discount: 0.9},
+			Yearly:    model.PricingItem{Price: 299.9, Discount: 0.8},
+		},
+		SVIP: model.TierPricing{
+			Monthly:   model.PricingItem{Price: 99.9, Discount: 1.0},
+			Quarterly: model.PricingItem{Price: 269.9, Discount: 0.9},
+			Yearly:    model.PricingItem{Price: 999.9, Discount: 0.8},
+		},
+	}
+}
+
+// SavePricingSettings 保存定价配置
+func (r *SettingsRepository) SavePricingSettings(ctx context.Context, settings *model.PricingSettings) error {
+	return r.Set(ctx, "pricing", "config", settings)
+}

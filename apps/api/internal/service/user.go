@@ -29,7 +29,7 @@ type UserListResult struct {
 }
 
 // ListUsers 获取用户列表
-func (s *UserService) ListUsers(ctx context.Context, search string, isSuperuser, isActive *bool, vipLevel *int, page, pageSize int) (*UserListResult, error) {
+func (s *UserService) ListUsers(ctx context.Context, search string, isSuperuser, isActive *bool, vipLevel *int, vipLevels []int, sortBy, sortOrder string, page, pageSize int) (*UserListResult, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -41,8 +41,8 @@ func (s *UserService) ListUsers(ctx context.Context, search string, isSuperuser,
 	var total int64
 	var err error
 
-	if search != "" || isSuperuser != nil || isActive != nil || vipLevel != nil {
-		users, total, err = s.userRepo.SearchWithFilters(ctx, search, isSuperuser, isActive, vipLevel, page, pageSize)
+	if search != "" || isSuperuser != nil || isActive != nil || vipLevel != nil || len(vipLevels) > 0 || sortBy != "" {
+		users, total, err = s.userRepo.SearchWithFilters(ctx, search, isSuperuser, isActive, vipLevel, vipLevels, sortBy, sortOrder, page, pageSize)
 	} else {
 		users, total, err = s.userRepo.List(ctx, page, pageSize)
 	}

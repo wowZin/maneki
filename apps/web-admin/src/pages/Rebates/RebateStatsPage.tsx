@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, DatePicker, Table, Select, Space, Typography } from 'antd'
-import { DollarOutlined, ShoppingCartOutlined, EyeOutlined, StopOutlined } from '@ant-design/icons'
+import { Card, Row, Col, DatePicker, Table, Select, Space } from 'antd'
+import { DollarOutlined, ShoppingCartOutlined, EyeOutlined, StopOutlined , InfoCircleOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import dayjs from 'dayjs'
 import { adminApi } from '../../services/admin'
@@ -9,13 +9,9 @@ const { RangePicker } = DatePicker
 const { Option } = Select
 
 const RebateStatsPage: React.FC = () => {
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(30, 'day'),
-    dayjs(),
-  ])
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([dayjs().subtract(30, 'day'), dayjs()])
   const [groupBy, setGroupBy] = useState('day')
   const [loading, setLoading] = useState(false)
-
   const [dashboard, setDashboard] = useState<any>({})
   const [trend, setTrend] = useState<any[]>([])
   const [creators, setCreators] = useState<any[]>([])
@@ -76,11 +72,25 @@ const RebateStatsPage: React.FC = () => {
     { title: '订阅数', dataIndex: 'subscription_count', key: 'subscription_count' },
   ]
 
-  return (
-    <div>
-      <Typography.Title level={4}>返佣统计</Typography.Title>
+  const statCards = [
+    { label: '总返佣金额', value: dashboard.total_rebate_amount || 0, icon: <DollarOutlined />, precision: 2, bar: 'from-[#7c3aed] to-[#a78bfa]', iconBg: 'bg-[#f5f3ff]', iconText: 'text-[#5b21b6]' },
+    { label: '总订阅数', value: dashboard.total_subscriptions || 0, icon: <ShoppingCartOutlined />, bar: 'from-[#3b82f6] to-[#60a5fa]', iconBg: 'bg-[#eff6ff]', iconText: 'text-[#1d4ed8]' },
+    { label: '待审核', value: dashboard.pending_count || 0, icon: <EyeOutlined />, bar: 'from-[#f59e0b] to-[#fbbf24]', iconBg: 'bg-[#fffbeb]', iconText: 'text-[#b45309]' },
+    { label: '已拦截', value: dashboard.blocked_count || 0, icon: <StopOutlined />, bar: 'from-[#ef4444] to-[#f87171]', iconBg: 'bg-[#fef2f2]', iconText: 'text-[#b91c1c]' },
+    { label: '审核中', value: dashboard.reviewing_count || 0, icon: <EyeOutlined />, bar: 'from-[#8b5cf6] to-[#a78bfa]', iconBg: 'bg-[#f3e8ff]', iconText: 'text-[#7c3aed]' },
+    { label: '平均返佣', value: dashboard.avg_rebate_per_subscription || 0, icon: <DollarOutlined />, precision: 2, bar: 'from-[#10b981] to-[#34d399]', iconBg: 'bg-[#ecfdf5]', iconText: 'text-[#059669]' },
+  ]
 
-      <Space style={{ marginBottom: 16 }}>
+  return (
+    <div className="max-w-[1440px] mx-auto p-4 md:p-6">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight m-0">返佣统计</h1>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-3 flex items-center gap-1.5">
+            <InfoCircleOutlined />
+            返佣数据趋势分析与创作者排名</p>
+      </div>
+
+      <Space className="mb-4">
         <RangePicker value={dateRange as any} onChange={(v: any) => v && setDateRange([v[0], v[1]])} />
         <Select value={groupBy} onChange={setGroupBy} style={{ width: 120 }}>
           <Option value="day">按日</Option>
@@ -89,93 +99,30 @@ const RebateStatsPage: React.FC = () => {
         </Select>
       </Space>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="总返佣金额"
-              value={dashboard.total_rebate_amount || 0}
-              prefix={<DollarOutlined />}
-              precision={2}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="总订阅数"
-              value={dashboard.total_subscriptions || 0}
-              prefix={<ShoppingCartOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="待审核"
-              value={dashboard.pending_count || 0}
-              prefix={<EyeOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="已拦截"
-              value={dashboard.blocked_count || 0}
-              prefix={<StopOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="审核中"
-              value={dashboard.reviewing_count || 0}
-              prefix={<EyeOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <Statistic
-              title="平均返佣"
-              value={dashboard.avg_rebate_per_subscription || 0}
-              prefix={<DollarOutlined />}
-              precision={2}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        {statCards.map((s, i) => (
+          <div key={i} className="relative overflow-hidden bg-white border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]">
+            <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.bar}`} />
+            <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center text-base mb-2 ${s.iconBg} ${s.iconText}`}>{s.icon}</div>
+            <div className="text-xl font-bold text-[var(--color-text-primary)] leading-tight">{s.precision ? s.value.toFixed(s.precision) : s.value}</div>
+            <div className="text-xs text-[var(--color-text-secondary)] mt-0.5 font-medium">{s.label}</div>
+          </div>
+        ))}
+      </div>
 
-      <Card title="趋势分析" style={{ marginBottom: 16 }} loading={loading}>
+      <Card title="趋势分析" loading={loading} className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)] mb-4">
         <ReactECharts option={trendOption} style={{ height: 320 }} />
       </Card>
 
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card title="创作者排名" loading={loading}>
-            <Table
-              columns={creatorColumns}
-              dataSource={creators}
-              rowKey="creator_id"
-              pagination={{ total: creatorTotal, pageSize: 10, showSizeChanger: false }}
-              size="small"
-            />
+      <Row gutter={[12, 12]}>
+        <Col xs={24} lg={12}>
+          <Card title="创作者排名" loading={loading} className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+            <Table columns={creatorColumns} dataSource={creators} rowKey="creator_id" pagination={{ total: creatorTotal, pageSize: 10, showSizeChanger: false }} size="small" />
           </Card>
         </Col>
-        <Col span={12}>
-          <Card title="Agent 统计" loading={loading}>
-            <Table
-              columns={agentColumns}
-              dataSource={agents}
-              rowKey="agent_id"
-              pagination={{ total: agentTotal, pageSize: 10, showSizeChanger: false }}
-              size="small"
-            />
+        <Col xs={24} lg={12}>
+          <Card title="Agent 统计" loading={loading} className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+            <Table columns={agentColumns} dataSource={agents} rowKey="agent_id" pagination={{ total: agentTotal, pageSize: 10, showSizeChanger: false }} size="small" />
           </Card>
         </Col>
       </Row>

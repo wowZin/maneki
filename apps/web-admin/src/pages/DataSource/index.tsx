@@ -18,7 +18,7 @@ const DataSource: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
@@ -65,7 +65,7 @@ const DataSource: React.FC = () => {
           </Space>
         }
       >
-        <Row gutter={[16, 16]}>
+        <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={8}>
             <Card
               hoverable

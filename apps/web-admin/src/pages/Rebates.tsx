@@ -205,7 +205,7 @@ const Rebates: React.FC = () => {
     <div>
       <h2 style={{ marginBottom: 24 }}>返佣管理</h2>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -249,7 +249,7 @@ const Rebates: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
         <Col span={16}>
           <Card title="近期结算动态">
             <Timeline

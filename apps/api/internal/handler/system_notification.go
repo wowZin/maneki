@@ -212,7 +212,7 @@ type UpdateNotificationRequest struct {
 	Priority        *int       `json:"priority" binding:"omitempty,oneof=1 2"`
 	StartTime       *time.Time `json:"start_time"`
 	EndTime         *time.Time `json:"end_time"`
-	MinVisibleLevel *int       `json:"min_visible_level" binding:"omitempty,min=1"`
+	MinVisibleLevel *int       `json:"min_visible_level" binding:"omitempty,min=0"`
 }
 
 // Update 更新通知
