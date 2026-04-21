@@ -1,17 +1,9 @@
-/**
- * Maneki Admin 后台管理应用
- */
-
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider, App as AntdApp } from 'antd'
+import { ConfigProvider, App as AntdApp, theme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-
-// 布局
 import AdminLayout from './components/AdminLayout'
 import AdminRoute from './components/AdminRoute'
-
-// 页面
 import Login from './pages/Login'
 import ChangePassword from './pages/ChangePassword'
 import Overview from './pages/Overview'
@@ -19,6 +11,8 @@ import Agents from './pages/Agents'
 import AgentCreate from './pages/Agents/AgentCreate'
 import RebateStatsPage from './pages/Rebates/RebateStatsPage'
 import RebateRecordsPage from './pages/Rebates/RebateRecordsPage'
+import RebateRulePage from './pages/Rebates/RebateRulePage'
+import AntiArbitrageRulePage from './pages/Rebates/AntiArbitrageRulePage'
 import Settings from './pages/Settings'
 import DataSource from './pages/DataSource'
 import NewsManagement from './pages/DataSource/NewsManagement'
@@ -26,46 +20,43 @@ import NewsDetail from './pages/DataSource/NewsDetail'
 import TopListManagement from './pages/DataSource/TopListManagement'
 import TopInstManagement from './pages/DataSource/TopInstManagement'
 import HotMoneyManagement from './pages/DataSource/HotMoneyManagement'
-
-// 系统设置子页面
 import PricingSettings from './pages/Settings/PricingSettings'
-import RebateRulePage from './pages/Rebates/RebateRulePage'
-import AntiArbitrageRulePage from './pages/Rebates/AntiArbitrageRulePage'
 import SystemSettings from './pages/Settings/SystemSettings'
 import NotificationSettings from './pages/Settings/NotificationSettings'
 import AdminAccounts from './pages/Settings/AdminAccounts'
-
-// 新增页面
 import AdminListPage from './pages/AdminSettings/AdminListPage'
 import UserListPage from './pages/UserManagement/UserListPage'
 import UserDetailPage from './pages/UserManagement/UserDetailPage'
-import AuditLogPage from './pages/AuditLog/AuditLogPage'
+import NotificationListPage from './pages/Notifications/NotificationListPage'
 import ProfilePage from './pages/Profile/ProfilePage'
 
-// Ant Design 主题配置
-const theme = {
+const antdTheme = {
   token: {
-    colorPrimary: '#3b82f6',
-    colorInfo: '#06b6d4',
+    colorPrimary: '#7c3aed',
+    colorInfo: '#3b82f6',
     colorSuccess: '#10b981',
     colorWarning: '#f59e0b',
     colorError: '#ef4444',
-    borderRadius: 8,
-    borderRadiusLG: 12,
+    borderRadius: 10,
+    borderRadiusLG: 14,
+    colorBgContainer: '#ffffff',
+    colorBgLayout: '#f8f9fa',
+    colorText: '#1e293b',
+    colorTextSecondary: '#64748b',
+    colorBorder: '#e2e8f0',
+    colorBorderSecondary: '#f1f5f9',
+    fontFamily: '"Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
+  algorithm: theme.defaultAlgorithm,
 }
 
-const App: React.FC = () => {
-  return (
-    <ConfigProvider locale={zhCN} theme={theme}>
-      <AntdApp>
-        <BrowserRouter>
-          <Routes>
-          {/* 登录页面 */}
+const App: React.FC = () => (
+  <ConfigProvider locale={zhCN} theme={antdTheme}>
+    <AntdApp>
+      <BrowserRouter>
+        <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/change-password" element={<ChangePassword />} />
-
-          {/* 管理后台路由 */}
           <Route
             path="/"
             element={
@@ -83,33 +74,27 @@ const App: React.FC = () => {
             <Route path="rebates/records" element={<RebateRecordsPage />} />
             <Route path="rebates/rules" element={<RebateRulePage />} />
             <Route path="rebates/anti-arbitrage" element={<AntiArbitrageRulePage />} />
-            <Route path="analytics" element={<div>数据统计（开发中）</div>} />
-            {/* 系统设置 - 旧页面，可以保留或重定向 */}
+            <Route path="analytics" element={<div className="text-center text-[color:var(--color-text-secondary)] py-20">数据统计（开发中）</div>} />
             <Route path="settings" element={<Settings />} />
+            <Route path="settings/pricing" element={<PricingSettings />} />
+            <Route path="settings/system" element={<SystemSettings />} />
+            <Route path="settings/notification" element={<NotificationSettings />} />
+            <Route path="settings/admin-accounts" element={<AdminAccounts />} />
             <Route path="datasource" element={<DataSource />} />
             <Route path="datasource/news" element={<NewsManagement />} />
             <Route path="datasource/news/:id" element={<NewsDetail />} />
             <Route path="datasource/top-list" element={<TopListManagement />} />
             <Route path="datasource/top-inst" element={<TopInstManagement />} />
             <Route path="datasource/hot-money" element={<HotMoneyManagement />} />
-            {/* 系统设置 - 新页面 */}
-            <Route path="settings/pricing" element={<PricingSettings />} />
-            <Route path="settings/system" element={<SystemSettings />} />
-            <Route path="settings/notification" element={<NotificationSettings />} />
-            <Route path="settings/admin-accounts" element={<AdminAccounts />} />
-            {/* 新增路由 */}
             <Route path="admin-settings" element={<AdminListPage />} />
-            <Route path="audit-logs" element={<AuditLogPage />} />
+            <Route path="notifications" element={<NotificationListPage />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
-
-          {/* 404 重定向 */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      </AntdApp>
-    </ConfigProvider>
-  )
-}
+    </AntdApp>
+  </ConfigProvider>
+)
 
 export default App

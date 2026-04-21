@@ -3,12 +3,7 @@
  */
 import React, { useState } from 'react'
 import { Card, Tabs } from 'antd'
-import {
-  DatabaseOutlined,
-  FileTextOutlined,
-  StockOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons'
+import { DatabaseOutlined, FileTextOutlined, StockOutlined, TrophyOutlined , InfoCircleOutlined } from '@ant-design/icons'
 import NewsSyncSettings from './SyncSettings'
 
 const DataSourceSettings: React.FC = () => {
@@ -20,7 +15,7 @@ const DataSourceSettings: React.FC = () => {
       label: (
         <span>
           <FileTextOutlined />
-          新闻同步
+          <span className="ml-1">新闻同步</span>
         </span>
       ),
       children: <NewsSyncSettings />,
@@ -30,14 +25,12 @@ const DataSourceSettings: React.FC = () => {
       label: (
         <span>
           <StockOutlined />
-          行情数据
+          <span className="ml-1">行情数据</span>
         </span>
       ),
       children: (
-        <Card title="行情数据同步设置" style={{ marginTop: 16 }}>
-          <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>
-            行情数据同步设置（开发中）
-          </p>
+        <Card title="行情数据同步设置" className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)] mt-4">
+          <p className="text-[var(--color-text-secondary)] text-center py-10">行情数据同步设置（开发中）</p>
         </Card>
       ),
     },
@@ -46,34 +39,33 @@ const DataSourceSettings: React.FC = () => {
       label: (
         <span>
           <TrophyOutlined />
-          龙虎榜
+          <span className="ml-1">龙虎榜</span>
         </span>
       ),
       children: (
-        <Card title="龙虎榜数据同步设置" style={{ marginTop: 16 }}>
-          <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>
-            龙虎榜数据同步设置（开发中）
-          </p>
+        <Card title="龙虎榜数据同步设置" className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)] mt-4">
+          <p className="text-[var(--color-text-secondary)] text-center py-10">龙虎榜数据同步设置（开发中）</p>
         </Card>
       ),
     },
   ]
 
   return (
-    <div>
-      <Card
-        title={
-          <span>
-            <DatabaseOutlined /> 数据源设置
+    <div className="max-w-[1440px] mx-auto p-4 md:p-6">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight m-0 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-[var(--radius-md)] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-light)] text-white text-base flex items-center justify-center">
+            <DatabaseOutlined />
           </span>
-        }
-      >
-        <Tabs
-          activeKey={activeKey}
-          onChange={setActiveKey}
-          items={items}
-          type="card"
-        />
+          数据源设置
+        </h1>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-3 flex items-center gap-1.5">
+            <InfoCircleOutlined />
+            配置各数据源的同步策略与参数</p>
+      </div>
+
+      <Card className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+        <Tabs activeKey={activeKey} onChange={setActiveKey} items={items} type="card" />
       </Card>
     </div>
   )

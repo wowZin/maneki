@@ -69,3 +69,36 @@ type HotMoneySyncSettings struct {
 	// 固定时间列表，如 ["06:00"]
 	FixedTimes []string `json:"fixed_times"`
 }
+
+// SystemSettings 系统级元信息配置
+type SystemSettings struct {
+	// 监控股票数量
+	MonitorStockCount int `json:"monitor_stock_count"`
+	// 信号置信度阈值 (0-1)
+	SignalThreshold float64 `json:"signal_threshold"`
+	// 数据保留天数
+	DataRetentionDays int `json:"data_retention_days"`
+	// Agent 讨论超时时间（分钟）
+	AgentDiscussionTimeout int `json:"agent_discussion_timeout"`
+	// 最大 Agent 数量
+	MaxAgents int `json:"max_agents"`
+}
+
+// PricingItem 单个周期的定价项（含折扣）
+type PricingItem struct {
+	Price    float64 `json:"price"`
+	Discount float64 `json:"discount"`
+}
+
+// TierPricing 单个会员等级的定价
+type TierPricing struct {
+	Monthly   PricingItem `json:"monthly"`
+	Quarterly PricingItem `json:"quarterly"`
+	Yearly    PricingItem `json:"yearly"`
+}
+
+// PricingSettings 定价配置
+type PricingSettings struct {
+	VIP  TierPricing `json:"vip"`
+	SVIP TierPricing `json:"svip"`
+}

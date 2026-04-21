@@ -58,6 +58,7 @@ func main() {
 	topInstRepo := repository.NewTopInstRepository(db)
 	hotMoneyRepo := repository.NewHotMoneyRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
+	userLevelRepo := repository.NewUserLevelRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
 	sysNotificationRepo := repository.NewSystemNotificationRepository(db)
 	rebateRuleRepo := repository.NewRebateRuleRepository(db)
@@ -88,7 +89,7 @@ func main() {
 	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo, topListRepo, topInstRepo, hotMoneyRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
-	userHandler := handler.NewUserHandler(userSvc, auditSvc)
+	userHandler := handler.NewUserHandler(userSvc, auditSvc, weightRepo, subscriptionRepo, userLevelRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	sysNotificationHandler := handler.NewSystemNotificationHandler(sysNotificationRepo)
 	rebateRuleHandler := handler.NewRebateRuleHandler(rebateRuleSvc)
@@ -135,6 +136,9 @@ func main() {
 		// 股票公开路由
 		v1.GET("/stocks/:code/kline", stockHandler.GetKLine)
 		v1.GET("/stocks/quotes", stockHandler.GetRealtimeQuote)
+
+		// 用户等级字典（公开，供前后端共享）
+		v1.GET("/user-levels", userHandler.ListUserLevels)
 
 		// 需要认证的路由
 		auth := v1.Group("/")
@@ -232,6 +236,14 @@ func main() {
 			// 系统设置 - 游资名录同步
 			admin.GET("/settings/hot-money-sync", settingsHandler.GetHotMoneySyncSettings)
 			admin.POST("/settings/hot-money-sync", settingsHandler.SaveHotMoneySyncSettings)
+
+			// 系统设置 - 元信息配置
+			admin.GET("/settings", settingsHandler.GetSettings)
+			admin.PUT("/settings", settingsHandler.UpdateSettings)
+
+			// 系统设置 - 定价配置
+			admin.GET("/pricing-settings", settingsHandler.GetPricingSettings)
+			admin.PUT("/pricing-settings", settingsHandler.SavePricingSettings)
 
 			// 管理员管理（仅超级管理员）
 			admin.GET("/admins", middleware.SuperAdminRequiredMiddleware(), adminMgmtHandler.ListAdmins)
@@ -369,6 +381,7 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.TopList{},
 		&model.TopInst{},
 		&model.HotMoney{},
+		&model.UserLevel{},
 		&model.Settings{},
 		&model.Notification{},
 		&model.SystemNotification{},

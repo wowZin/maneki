@@ -42,8 +42,9 @@ type User struct {
 	RegisterSource string `json:"register_source" gorm:"size:20;default:'email'"`
 
 	// VIP体系
-	VIPLevel    int        `json:"vip_level" gorm:"default:0"`
-	VIPExpireAt *time.Time `json:"vip_expire_at,omitempty"`
+	VIPLevel       int        `json:"vip_level" gorm:"default:0"`
+	VIPExpireAt    *time.Time `json:"vip_expire_at,omitempty"`
+	BoardAccuracy  *float64   `json:"board_accuracy,omitempty" gorm:"type:decimal(5,2)"`
 
 	// 关联关系
 	Agents []UserAgent `json:"agents,omitempty" gorm:"foreignKey:UserID"`

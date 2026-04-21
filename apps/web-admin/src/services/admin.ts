@@ -56,11 +56,22 @@ export const adminApi = {
   // 系统配置
   getSettings: async () => {
     const { data } = await api.get('/v1/admin/settings')
-    return data
+    return data.data
   },
 
   updateSettings: async (settings: any) => {
     const { data } = await api.put('/v1/admin/settings', settings)
+    return data
+  },
+
+  // 定价配置
+  getPricingSettings: async () => {
+    const { data } = await api.get('/v1/admin/pricing-settings')
+    return data.data
+  },
+
+  updatePricingSettings: async (settings: any) => {
+    const { data } = await api.put('/v1/admin/pricing-settings', settings)
     return data
   },
 

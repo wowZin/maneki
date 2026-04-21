@@ -1,20 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Table,
-  Card,
-  Tag,
-  Space,
-  Select,
-  DatePicker,
-  Button,
-  Modal,
-  Form,
-  Input,
-  message,
-  InputNumber,
-  Typography,
-} from 'antd'
-import { EyeOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons'
+import { Table, Card, Tag, Space, Select, DatePicker, Button, Modal, Form, Input, message, InputNumber } from 'antd'
+import { EyeOutlined, CheckOutlined, StopOutlined, FileTextOutlined , InfoCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { adminApi } from '../../services/admin'
 
@@ -87,23 +73,13 @@ const RebateRecordsPage: React.FC = () => {
     { title: 'AgentID', dataIndex: 'agent_id', key: 'agent_id', width: 90 },
     { title: '创作者ID', dataIndex: 'creator_id', key: 'creator_id', width: 100 },
     { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
-    {
-      title: '单价',
-      dataIndex: 'unit_price',
-      key: 'unit_price',
-      width: 100,
-      render: (v: number) => `¥${v?.toFixed(2) || '0.00'}`,
-    },
+    { title: '单价', dataIndex: 'unit_price', key: 'unit_price', width: 100, render: (v: number) => `¥${v?.toFixed(2) || '0.00'}` },
     {
       title: '返佣金额',
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
-      render: (v: number) => (
-        <span style={{ fontWeight: 'bold', color: v > 0 ? '#52c41a' : '#999' }}>
-          ¥{v?.toFixed(2) || '0.00'}
-        </span>
-      ),
+      render: (v: number) => <span className={`font-bold ${v > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-text-tertiary)]'}`}>¥{v?.toFixed(2) || '0.00'}</span>,
     },
     {
       title: '状态',
@@ -123,14 +99,10 @@ const RebateRecordsPage: React.FC = () => {
         tags?.length ? (
           <Space size={4}>
             {tags.map((t) => (
-              <Tag key={t} color="red">
-                {t}
-              </Tag>
+              <Tag key={t} color="red">{t}</Tag>
             ))}
           </Space>
-        ) : (
-          '-'
-        ),
+        ) : '-',
     },
     {
       title: '创建时间',
@@ -162,20 +134,27 @@ const RebateRecordsPage: React.FC = () => {
   ]
 
   return (
-    <div>
-      <Typography.Title level={4}>返佣记录</Typography.Title>
+    <div className="max-w-[1440px] mx-auto p-4 md:p-6">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight m-0 flex items-center gap-3">
+          <span className="w-9 h-9 rounded-[var(--radius-md)] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-light)] text-white text-base flex items-center justify-center">
+            <FileTextOutlined />
+          </span>
+          返佣记录
+        </h1>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-3 flex items-center gap-1.5">
+            <InfoCircleOutlined />
+            查看与审核所有返佣结算记录</p>
+      </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)] mb-4">
         <Space wrap>
           <Select
             placeholder="状态"
             allowClear
             style={{ width: 120 }}
             value={status}
-            onChange={(v) => {
-              setStatus(v)
-              setPage(1)
-            }}
+            onChange={(v) => { setStatus(v); setPage(1) }}
           >
             <Option value="pending">待结算</Option>
             <Option value="settled">已结算</Option>
@@ -187,49 +166,43 @@ const RebateRecordsPage: React.FC = () => {
             placeholder="AgentID"
             style={{ width: 120 }}
             value={agentId}
-            onChange={(v) => {
-              setAgentId(v || undefined)
-              setPage(1)
-            }}
+            onChange={(v) => { setAgentId(v || undefined); setPage(1) }}
           />
           <InputNumber
             placeholder="创作者ID"
             style={{ width: 120 }}
             value={creatorId}
-            onChange={(v) => {
-              setCreatorId(v || undefined)
-              setPage(1)
-            }}
+            onChange={(v) => { setCreatorId(v || undefined); setPage(1) }}
           />
           <RangePicker
             value={dateRange as any}
-            onChange={(v: any) => {
-              setDateRange(v)
-              setPage(1)
-            }}
+            onChange={(v: any) => { setDateRange(v); setPage(1) }}
           />
-          <Button type="primary" onClick={fetchRecords}>
+          <Button
+            type="primary"
+            onClick={fetchRecords}
+            className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-light)] !border-none"
+          >
             查询
           </Button>
         </Space>
       </Card>
 
-      <Table
-        columns={columns}
-        dataSource={records}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          onChange: (p, ps) => {
-            setPage(p)
-            setPageSize(ps || 20)
-          },
-        }}
-        scroll={{ x: 1200 }}
-      />
+      <Card className="rounded-[var(--radius-lg)] border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+        <Table
+          columns={columns}
+          dataSource={records}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            onChange: (p, ps) => { setPage(p); setPageSize(ps || 20) },
+          }}
+          scroll={{ x: 1200 }}
+        />
+      </Card>
 
       <Modal
         title="审核返佣记录"
@@ -238,27 +211,15 @@ const RebateRecordsPage: React.FC = () => {
         onOk={() => reviewForm.submit()}
       >
         {reviewRecord && (
-          <div style={{ marginBottom: 16 }}>
-            <p>
-              记录ID: <strong>{reviewRecord.id}</strong>
-            </p>
-            <p>
-              订阅ID: <strong>{reviewRecord.subscription_id}</strong>
-            </p>
-            <p>
-              返佣金额: <strong>¥{reviewRecord.amount?.toFixed(2)}</strong>
-            </p>
+          <div className="mb-4">
+            <p>记录ID: <strong>{reviewRecord.id}</strong></p>
+            <p>订阅ID: <strong>{reviewRecord.subscription_id}</strong></p>
+            <p>返佣金额: <strong>¥{reviewRecord.amount?.toFixed(2)}</strong></p>
             <p>
               套利标签:{' '}
               {reviewRecord.arbitrage_tags?.length ? (
-                reviewRecord.arbitrage_tags.map((t: string) => (
-                  <Tag key={t} color="red">
-                    {t}
-                  </Tag>
-                ))
-              ) : (
-                '无'
-              )}
+                reviewRecord.arbitrage_tags.map((t: string) => <Tag key={t} color="red">{t}</Tag>)
+              ) : '无'}
             </p>
           </div>
         )}
@@ -271,13 +232,13 @@ const RebateRecordsPage: React.FC = () => {
             <Select placeholder="请选择">
               <Option value="normal">
                 <Space>
-                  <CheckOutlined style={{ color: '#52c41a' }} />
+                  <CheckOutlined className="text-[var(--color-success)]" />
                   正常通过
                 </Space>
               </Option>
               <Option value="arbitrage">
                 <Space>
-                  <StopOutlined style={{ color: '#ff4d4f' }} />
+                  <StopOutlined className="text-[var(--color-error)]" />
                   确认套利
                 </Space>
               </Option>
