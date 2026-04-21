@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Button, Input, Tag, Space, Popconfirm, message, Card } from 'antd'
 import { SearchOutlined, EyeOutlined, LockOutlined, UnlockOutlined, KeyOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { userApi, User } from '../../api/user'
 
@@ -101,11 +102,12 @@ const UserListPage: React.FC = () => {
     {
       title: '注册时间',
       dataIndex: 'created_at',
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '最后登录',
       dataIndex: 'last_login_at',
-      render: (v: string) => v || '-',
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '操作',

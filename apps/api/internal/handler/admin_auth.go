@@ -141,12 +141,38 @@ func (h *AdminAuthHandler) AdminMe(c *gin.Context) {
 		return
 	}
 
+	// 从数据库获取完整信息
+	admin, err := h.adminAuthSvc.GetAdminByID(c.Request.Context(), adminID)
+	if err != nil || admin == nil {
+		// 降级返回基础信息
+		c.JSON(http.StatusOK, gin.H{
+			"code": 0,
+			"data": gin.H{
+				"id":   adminID,
+				"name": adminName,
+				"role": adminRole,
+			},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"id":   adminID,
-			"name": adminName,
-			"role": adminRole,
+			"id":                  admin.ID,
+			"name":                admin.Name,
+			"role":                adminRole,
+			"is_active":           admin.IsActive,
+			"force_change_password": admin.ForceChangePassword,
+			"last_login_at":       formatTime(admin.LastLoginAt),
+			"created_at":          admin.CreatedAt.Format("2006-01-02 15:04:05"),
 		},
 	})
+}
+
+func formatTime(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format("2006-01-02 15:04:05")
 }

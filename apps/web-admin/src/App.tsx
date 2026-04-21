@@ -17,7 +17,8 @@ import ChangePassword from './pages/ChangePassword'
 import Overview from './pages/Overview'
 import Agents from './pages/Agents'
 import AgentCreate from './pages/Agents/AgentCreate'
-import Rebates from './pages/Rebates'
+import RebateStatsPage from './pages/Rebates/RebateStatsPage'
+import RebateRecordsPage from './pages/Rebates/RebateRecordsPage'
 import Settings from './pages/Settings'
 import DataSource from './pages/DataSource'
 import NewsManagement from './pages/DataSource/NewsManagement'
@@ -27,8 +28,9 @@ import TopInstManagement from './pages/DataSource/TopInstManagement'
 import HotMoneyManagement from './pages/DataSource/HotMoneyManagement'
 
 // 系统设置子页面
-import RebateSettings from './pages/Settings/RebateSettings'
 import PricingSettings from './pages/Settings/PricingSettings'
+import RebateRulePage from './pages/Rebates/RebateRulePage'
+import AntiArbitrageRulePage from './pages/Rebates/AntiArbitrageRulePage'
 import SystemSettings from './pages/Settings/SystemSettings'
 import NotificationSettings from './pages/Settings/NotificationSettings'
 import AdminAccounts from './pages/Settings/AdminAccounts'
@@ -38,6 +40,7 @@ import AdminListPage from './pages/AdminSettings/AdminListPage'
 import UserListPage from './pages/UserManagement/UserListPage'
 import UserDetailPage from './pages/UserManagement/UserDetailPage'
 import AuditLogPage from './pages/AuditLog/AuditLogPage'
+import ProfilePage from './pages/Profile/ProfilePage'
 
 // Ant Design 主题配置
 const theme = {
@@ -76,7 +79,10 @@ const App: React.FC = () => {
             <Route path="users/:id" element={<UserDetailPage />} />
             <Route path="agents" element={<Agents />} />
             <Route path="agents/create" element={<AgentCreate />} />
-            <Route path="rebates" element={<Rebates />} />
+            <Route path="rebates" element={<RebateStatsPage />} />
+            <Route path="rebates/records" element={<RebateRecordsPage />} />
+            <Route path="rebates/rules" element={<RebateRulePage />} />
+            <Route path="rebates/anti-arbitrage" element={<AntiArbitrageRulePage />} />
             <Route path="analytics" element={<div>数据统计（开发中）</div>} />
             {/* 系统设置 - 旧页面，可以保留或重定向 */}
             <Route path="settings" element={<Settings />} />
@@ -87,7 +93,6 @@ const App: React.FC = () => {
             <Route path="datasource/top-inst" element={<TopInstManagement />} />
             <Route path="datasource/hot-money" element={<HotMoneyManagement />} />
             {/* 系统设置 - 新页面 */}
-            <Route path="settings/rebate" element={<RebateSettings />} />
             <Route path="settings/pricing" element={<PricingSettings />} />
             <Route path="settings/system" element={<SystemSettings />} />
             <Route path="settings/notification" element={<NotificationSettings />} />
@@ -95,6 +100,7 @@ const App: React.FC = () => {
             {/* 新增路由 */}
             <Route path="admin-settings" element={<AdminListPage />} />
             <Route path="audit-logs" element={<AuditLogPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* 404 重定向 */}

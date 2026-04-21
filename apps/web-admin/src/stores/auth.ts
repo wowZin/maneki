@@ -9,6 +9,10 @@ export interface AdminUser {
   id: number
   name: string
   role: 'super' | 'admin'
+  is_active?: boolean
+  force_change_password?: boolean
+  last_login_at?: string
+  created_at?: string
 }
 
 interface AuthState {

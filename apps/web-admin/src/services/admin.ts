@@ -63,4 +63,106 @@ export const adminApi = {
     const { data } = await api.put('/v1/admin/settings', settings)
     return data
   },
+
+  // 返佣定价规则
+  getRebateRules: async (params: { page?: number; pageSize?: number; status?: string; agent_id?: number }) => {
+    const { data } = await api.get('/v1/admin/rebate-rules', { params })
+    return data
+  },
+
+  getRebateRule: async (id: number) => {
+    const { data } = await api.get(`/v1/admin/rebate-rules/${id}`)
+    return data
+  },
+
+  createRebateRule: async (payload: any) => {
+    const { data } = await api.post('/v1/admin/rebate-rules', payload)
+    return data
+  },
+
+  updateRebateRule: async (id: number, payload: any) => {
+    const { data } = await api.put(`/v1/admin/rebate-rules/${id}`, payload)
+    return data
+  },
+
+  toggleRebateRuleStatus: async (id: number, status: string) => {
+    const { data } = await api.post(`/v1/admin/rebate-rules/${id}/toggle`, { status })
+    return data
+  },
+
+  deleteRebateRule: async (id: number) => {
+    const { data } = await api.delete(`/v1/admin/rebate-rules/${id}`)
+    return data
+  },
+
+  // 防套利规则
+  getAntiArbitrageRules: async (params: { status?: string; strategy_type?: string }) => {
+    const { data } = await api.get('/v1/admin/anti-arbitrage-rules', { params })
+    return data
+  },
+
+  createAntiArbitrageRule: async (payload: any) => {
+    const { data } = await api.post('/v1/admin/anti-arbitrage-rules', payload)
+    return data
+  },
+
+  updateAntiArbitrageRule: async (id: number, payload: any) => {
+    const { data } = await api.put(`/v1/admin/anti-arbitrage-rules/${id}`, payload)
+    return data
+  },
+
+  toggleAntiArbitrageRuleStatus: async (id: number, status: string) => {
+    const { data } = await api.post(`/v1/admin/anti-arbitrage-rules/${id}/toggle`, { status })
+    return data
+  },
+
+  deleteAntiArbitrageRule: async (id: number) => {
+    const { data } = await api.delete(`/v1/admin/anti-arbitrage-rules/${id}`)
+    return data
+  },
+
+  // 返佣统计
+  getRebateDashboardStats: async (params?: { start_date?: string; end_date?: string }) => {
+    const { data } = await api.get('/v1/admin/rebate-stats/dashboard', { params })
+    return data
+  },
+
+  getRebateTrend: async (params?: { group_by?: string; start_date?: string; end_date?: string; agent_id?: number; creator_id?: number }) => {
+    const { data } = await api.get('/v1/admin/rebate-stats/trend', { params })
+    return data
+  },
+
+  getRebateCreatorRanking: async (params?: { page?: number; pageSize?: number; start_date?: string; end_date?: string }) => {
+    const { data } = await api.get('/v1/admin/rebate-stats/creators', { params })
+    return data
+  },
+
+  getRebateAgentStats: async (params?: { page?: number; pageSize?: number; start_date?: string; end_date?: string; creator_id?: number }) => {
+    const { data } = await api.get('/v1/admin/rebate-stats/agents', { params })
+    return data
+  },
+
+  // 返佣记录
+  getRebateRecords: async (params: {
+    page?: number
+    pageSize?: number
+    status?: string | null
+    agent_id?: number
+    creator_id?: number
+    start_date?: string
+    end_date?: string
+  }) => {
+    const { data } = await api.get('/v1/admin/rebate-records', { params })
+    return data
+  },
+
+  getRebateRecord: async (id: number) => {
+    const { data } = await api.get(`/v1/admin/rebate-records/${id}`)
+    return data
+  },
+
+  reviewRebateRecord: async (id: number, payload: { conclusion: string; remark?: string }) => {
+    const { data } = await api.post(`/v1/admin/rebate-records/${id}/review`, payload)
+    return data
+  },
 }

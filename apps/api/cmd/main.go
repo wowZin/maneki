@@ -22,6 +22,7 @@ import (
 	"github.com/maneki/api/internal/middleware"
 	"github.com/maneki/api/internal/model"
 	"github.com/maneki/api/internal/repository"
+	"github.com/maneki/api/internal/scheduler"
 	"github.com/maneki/api/internal/service"
 )
 
@@ -58,6 +59,11 @@ func main() {
 	hotMoneyRepo := repository.NewHotMoneyRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
+	sysNotificationRepo := repository.NewSystemNotificationRepository(db)
+	rebateRuleRepo := repository.NewRebateRuleRepository(db)
+	rebateRecordRepo := repository.NewRebateRecordRepository(db)
+	antiArbitrageRepo := repository.NewAntiArbitrageRuleRepository(db)
+	rebateAuditLogRepo := repository.NewRebateAuditLogRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -67,6 +73,10 @@ func main() {
 	adminSvc := service.NewAdminService(adminRepo, redisClient)
 	auditSvc := service.NewAuditService(auditRepo)
 	userSvc := service.NewUserService(userRepo)
+	rebateRuleSvc := service.NewRebateRuleService(rebateRuleRepo)
+	rebateRecordSvc := service.NewRebateRecordService(rebateRecordRepo, rebateRuleRepo, antiArbitrageRepo, rebateAuditLogRepo, redisClient)
+	antiArbitrageSvc := service.NewAntiArbitrageService(antiArbitrageRepo)
+	rebateStatsSvc := service.NewRebateStatsService(rebateRecordRepo)
 
 	// 初始化处理器
 	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient)
@@ -80,6 +90,11 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
 	userHandler := handler.NewUserHandler(userSvc, auditSvc)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
+	sysNotificationHandler := handler.NewSystemNotificationHandler(sysNotificationRepo)
+	rebateRuleHandler := handler.NewRebateRuleHandler(rebateRuleSvc)
+	rebateRecordHandler := handler.NewRebateRecordHandler(rebateRecordSvc)
+	antiArbitrageHandler := handler.NewAntiArbitrageHandler(antiArbitrageSvc)
+	rebateStatsHandler := handler.NewRebateStatsHandler(rebateStatsSvc)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -140,6 +155,10 @@ func main() {
 
 			// 订阅管理
 			auth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
+
+			// 系统通知（用户端）
+			auth.GET("/notifications", sysNotificationHandler.ListUser)
+			auth.GET("/notifications/:id", sysNotificationHandler.GetUser)
 		}
 
 		// 管理后台认证路由
@@ -234,11 +253,45 @@ func main() {
 			admin.GET("/audit-logs", auditHandler.ListAuditLogs)
 			admin.GET("/audit-logs/export", auditHandler.ExportAuditLogs)
 
-			// 通知管理
-			admin.GET("/notifications", notificationHandler.GetNotifications)
+			// 推送通知（顶部铃铛，后台任务推送）
+			admin.GET("/notifications/stats", notificationHandler.GetNotificationStats)
 			admin.POST("/notifications/:id/read", notificationHandler.MarkRead)
 			admin.POST("/notifications/read-all", notificationHandler.MarkAllRead)
-			admin.GET("/notifications/stats", notificationHandler.GetNotificationStats)
+
+			// 系统通知管理（通知设置页）
+			admin.GET("/notifications", sysNotificationHandler.ListAdmin)
+			admin.GET("/notifications/:id", sysNotificationHandler.GetAdmin)
+			admin.POST("/notifications", sysNotificationHandler.Create)
+			admin.PUT("/notifications/:id", sysNotificationHandler.Update)
+			admin.POST("/notifications/:id/disable", sysNotificationHandler.Disable)
+			admin.POST("/notifications/:id/duplicate", sysNotificationHandler.Duplicate)
+
+			// 返佣规则管理
+			admin.GET("/rebate-rules", rebateRuleHandler.ListRebateRules)
+			admin.GET("/rebate-rules/:id", rebateRuleHandler.GetRebateRule)
+			admin.POST("/rebate-rules", rebateRuleHandler.CreateRebateRule)
+			admin.PUT("/rebate-rules/:id", rebateRuleHandler.UpdateRebateRule)
+			admin.POST("/rebate-rules/:id/toggle", rebateRuleHandler.ToggleRebateRuleStatus)
+			admin.DELETE("/rebate-rules/:id", rebateRuleHandler.DeleteRebateRule)
+
+			// 返佣记录管理
+			admin.GET("/rebate-records", rebateRecordHandler.ListRecords)
+			admin.GET("/rebate-records/:id", rebateRecordHandler.GetRecord)
+			admin.POST("/rebate-records/:id/review", rebateRecordHandler.ReviewRecord)
+
+			// 防套利规则管理
+			admin.GET("/anti-arbitrage-rules", antiArbitrageHandler.ListRules)
+			admin.GET("/anti-arbitrage-rules/:id", antiArbitrageHandler.GetRule)
+			admin.POST("/anti-arbitrage-rules", antiArbitrageHandler.CreateRule)
+			admin.PUT("/anti-arbitrage-rules/:id", antiArbitrageHandler.UpdateRule)
+			admin.POST("/anti-arbitrage-rules/:id/toggle", antiArbitrageHandler.ToggleStatus)
+			admin.DELETE("/anti-arbitrage-rules/:id", antiArbitrageHandler.DeleteRule)
+
+			// 返佣统计
+			admin.GET("/rebate-stats/dashboard", rebateStatsHandler.GetDashboardStats)
+			admin.GET("/rebate-stats/trend", rebateStatsHandler.GetTrend)
+			admin.GET("/rebate-stats/creators", rebateStatsHandler.GetCreatorRanking)
+			admin.GET("/rebate-stats/agents", rebateStatsHandler.GetAgentStats)
 		}
 
 		// 内部服务路由（供 data-service 调用，使用 X-Internal-Token 认证）
@@ -246,8 +299,14 @@ func main() {
 		internal.Use(middleware.InternalTokenMiddleware())
 		{
 			internal.POST("/notifications", notificationHandler.CreateNotification)
+			internal.POST("/rebate/calculate", rebateRecordHandler.CalculateRebate)
 		}
 	}
+
+	// 启动T+1结算定时任务
+	settlementScheduler := scheduler.NewSettlementScheduler(rebateRecordRepo)
+	settlementScheduler.Start()
+	defer settlementScheduler.Stop()
 
 	// 创建HTTP服务器
 	srv := &http.Server{
@@ -312,6 +371,12 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.HotMoney{},
 		&model.Settings{},
 		&model.Notification{},
+		&model.SystemNotification{},
+		&model.RebateRule{},
+		&model.IncentiveRule{},
+		&model.RebateRecord{},
+		&model.AntiArbitrageRule{},
+		&model.RebateAuditLog{},
 	}
 
 	for _, m := range models {
@@ -328,7 +393,39 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		}
 	}
 
+	// 创建返佣规则唯一性约束（防止并发冲突）
+	if err := createRebateRuleIndexes(db); err != nil {
+		log.Printf("Warning: failed to create rebate rule indexes: %v", err)
+	}
+
 	return db, nil
+}
+
+// createRebateRuleIndexes 创建返佣规则数据库约束
+func createRebateRuleIndexes(db *gorm.DB) error {
+	// 全局规则唯一性：同一时间只能有一条 active 全局规则
+	if err := db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_rebate_rules_active_global
+		ON rebate_rules (status)
+		WHERE status = 'active' AND agent_id IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	// Agent 专属规则唯一性：同一时间只能有一条 active 专属规则
+	if err := db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_rebate_rules_active_agent
+		ON rebate_rules (agent_id, status)
+		WHERE status = 'active' AND agent_id IS NOT NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	// 返佣记录订阅ID唯一性
+	return db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_rebate_records_subscription_id
+		ON rebate_records (subscription_id)
+	`).Error
 }
 
 // initRedis 初始化Redis连接

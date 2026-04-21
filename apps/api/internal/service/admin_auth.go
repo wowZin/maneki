@@ -121,6 +121,11 @@ func (s *AdminAuthService) ChangePassword(ctx context.Context, adminID uint64, o
 	return s.adminRepo.Update(ctx, admin)
 }
 
+// GetAdminByID 根据ID获取管理员
+func (s *AdminAuthService) GetAdminByID(ctx context.Context, adminID uint64) (*model.Admin, error) {
+	return s.adminRepo.GetByID(ctx, adminID)
+}
+
 // GenerateRandomPassword 生成随机密码
 func GenerateRandomPassword(length int) string {
 	if length < 8 {

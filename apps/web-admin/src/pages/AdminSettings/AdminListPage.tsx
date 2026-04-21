@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, Input, message, Tag, Space, Popconfirm } from 'antd'
 import { PlusOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { adminApi, Admin } from '../../api/admin'
 
 const AdminListPage: React.FC = () => {
@@ -96,11 +97,12 @@ const AdminListPage: React.FC = () => {
     {
       title: '创建时间',
       dataIndex: 'created_at',
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '最后登录',
       dataIndex: 'last_login_at',
-      render: (v: string) => v || '-',
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '操作',

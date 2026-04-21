@@ -167,12 +167,22 @@ const AdminLayout: React.FC = () => {
         {
           key: '/rebates',
           icon: <DollarOutlined />,
-          label: '返佣数据',
+          label: '返佣统计',
         },
         {
-          key: '/settings/rebate',
+          key: '/rebates/records',
+          icon: <FileTextOutlined />,
+          label: '返佣记录',
+        },
+        {
+          key: '/rebates/rules',
           icon: <SettingOutlined />,
           label: '规则设置',
+        },
+        {
+          key: '/rebates/anti-arbitrage',
+          icon: <SafetyOutlined />,
+          label: '防套利规则',
         },
       ],
     },
@@ -207,6 +217,28 @@ const AdminLayout: React.FC = () => {
       key: '/audit-logs',
       icon: <AuditOutlined />,
       label: '操作日志',
+    },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: '系统设置',
+      children: [
+        {
+          key: '/settings/pricing',
+          icon: <DollarOutlined />,
+          label: '定价设置',
+        },
+        {
+          key: '/settings/notification',
+          icon: <BellOutlined />,
+          label: '通知设置',
+        },
+        {
+          key: '/settings/system',
+          icon: <SettingOutlined />,
+          label: '元信息配置',
+        },
+      ],
     },
   ]
 

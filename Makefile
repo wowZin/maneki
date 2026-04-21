@@ -31,12 +31,12 @@ help:
 
 stop-api:
 	@echo ">>> Stopping API service..."
-	@-kill -9 $$(lsof -ti tcp:$(API_PORT)) 2>/dev/null || true
+	@docker compose -f $(COMPOSE_FILE) stop api
 	@echo ">>> API stopped."
 
 stop-data:
 	@echo ">>> Stopping Data service..."
-	@-kill -9 $$(lsof -ti tcp:$(DATA_PORT)) 2>/dev/null || true
+	@docker compose -f $(COMPOSE_FILE) stop data-service
 	@echo ">>> Data service stopped."
 
 stop-web:
@@ -59,17 +59,13 @@ stop-all: stop-api stop-data stop-web stop-db stop-redis
 # ---------- Start ----------
 
 start-api:
-	@echo ">>> Building API..."
-	@cd apps/api && go build -o main cmd/main.go
-	@echo ">>> Starting API service on port $(API_PORT)..."
-	@cd apps/api && nohup ./main > /dev/null 2>&1 &
-	@sleep 1
+	@echo ">>> Starting API service (Docker) on port $(API_PORT)..."
+	@docker compose -f $(COMPOSE_FILE) up -d api
 	@echo ">>> API started."
 
 start-data:
-	@echo ">>> Starting Data service on port $(DATA_PORT)..."
-	@cd apps/service-data && nohup python main.py > /dev/null 2>&1 &
-	@sleep 1
+	@echo ">>> Starting Data service (Docker) on port $(DATA_PORT)..."
+	@docker compose -f $(COMPOSE_FILE) up -d data-service
 	@echo ">>> Data service started."
 
 start-web:
@@ -96,9 +92,15 @@ start-all: start-infra start-api start-data start-web
 
 # ---------- Restart ----------
 
-restart-api: stop-api start-api
+restart-api:
+	@echo ">>> Restarting API service..."
+	@docker compose -f $(COMPOSE_FILE) restart api
+	@echo ">>> API restarted."
 
-restart-data: stop-data start-data
+restart-data:
+	@echo ">>> Restarting Data service..."
+	@docker compose -f $(COMPOSE_FILE) restart data-service
+	@echo ">>> Data service restarted."
 
 restart-web: stop-web start-web
 
