@@ -1,27 +1,29 @@
 /**
- * 管理员认证状态管理 - Cookie 版本 (httpOnly)
- * Token 存储在 httpOnly Cookie 中，前端无法直接访问，更安全
+ * 管理员认证状态管理
  */
 
 import { create } from 'zustand'
+import { adminAuthApi } from '../api/auth'
 
-interface User {
-  id: string
-  email: string
-  username: string
-  is_superuser: boolean
-  avatar_url?: string
+export interface AdminUser {
+  id: number
+  name: string
+  role: 'super' | 'admin'
+  is_active?: boolean
+  force_change_password?: boolean
+  last_login_at?: string
+  created_at?: string
 }
 
 interface AuthState {
-  user: User | null
+  user: AdminUser | null
   isLoading: boolean
   isAuthenticated: boolean
 
   // Actions
-  setUser: (user: User | null) => void
+  setUser: (user: AdminUser | null) => void
   setLoading: (loading: boolean) => void
-  login: (user: User) => void
+  login: (user: AdminUser) => void
   logout: () => void
   fetchUser: () => Promise<void>
 }
@@ -44,13 +46,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   fetchUser: async () => {
     try {
-      const response = await fetch('/api/v1/auth/me', {
-        credentials: 'include', // 携带 Cookie
-      })
-
-      if (response.ok) {
-        const user = await response.json()
-        set({ user, isAuthenticated: true, isLoading: false })
+      const { data: result } = await adminAuthApi.me()
+      if (result.code === 0 && result.data) {
+        set({ user: result.data, isAuthenticated: true, isLoading: false })
       } else {
         set({ user: null, isAuthenticated: false, isLoading: false })
       }

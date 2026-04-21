@@ -88,3 +88,117 @@ class ConfigService:
         """
         enabled_sources = ConfigService.get_enabled_sources()
         return source_id in enabled_sources
+
+    @staticmethod
+    def get_top_list_sync_settings() -> Dict[str, Any]:
+        """
+        获取龙虎榜同步设置
+
+        只支持固定时间模式
+
+        Returns:
+            {
+                "enabled": True,
+                "fixed_times": ["15:30", "16:00", "17:00"]
+            }
+        """
+        try:
+            with get_db_session() as db:
+                try:
+                    result = db.execute(
+                        "SELECT value FROM settings WHERE type = 'top_list_sync' AND key = 'config'"
+                    ).fetchone()
+
+                    if result and result[0]:
+                        settings = json.loads(result[0])
+                        logger.info(f"Loaded top list sync settings from DB: {settings}")
+                        return settings
+                except Exception as e:
+                    logger.warning(f"Failed to load top list settings from DB: {e}")
+
+        except Exception as e:
+            logger.warning(f"Config service error: {e}")
+
+        # 返回默认设置
+        default_settings = {
+            "enabled": True,
+            "fixed_times": ["15:30", "16:00", "17:00"]
+        }
+        logger.info(f"Using default top list sync settings: {default_settings}")
+        return default_settings
+
+    @staticmethod
+    def get_top_inst_sync_settings() -> Dict[str, Any]:
+        """
+        获取龙虎榜机构交易名单同步设置
+
+        只支持固定时间模式
+
+        Returns:
+            {
+                "enabled": True,
+                "fixed_times": ["15:30", "16:00", "17:00"]
+            }
+        """
+        try:
+            with get_db_session() as db:
+                try:
+                    result = db.execute(
+                        "SELECT value FROM settings WHERE type = 'top_inst_sync' AND key = 'config'"
+                    ).fetchone()
+
+                    if result and result[0]:
+                        settings = json.loads(result[0])
+                        logger.info(f"Loaded top inst sync settings from DB: {settings}")
+                        return settings
+                except Exception as e:
+                    logger.warning(f"Failed to load top inst settings from DB: {e}")
+
+        except Exception as e:
+            logger.warning(f"Config service error: {e}")
+
+        # 返回默认设置
+        default_settings = {
+            "enabled": True,
+            "fixed_times": ["15:30", "16:00", "17:00"]
+        }
+        logger.info(f"Using default top inst sync settings: {default_settings}")
+        return default_settings
+
+    @staticmethod
+    def get_hot_money_sync_settings() -> Dict[str, Any]:
+        """
+        获取游资名录同步设置
+
+        只支持固定时间模式
+
+        Returns:
+            {
+                "enabled": True,
+                "fixed_times": ["06:00"]
+            }
+        """
+        try:
+            with get_db_session() as db:
+                try:
+                    result = db.execute(
+                        "SELECT value FROM settings WHERE type = 'hot_money_sync' AND key = 'config'"
+                    ).fetchone()
+
+                    if result and result[0]:
+                        settings = json.loads(result[0])
+                        logger.info(f"Loaded hot money sync settings from DB: {settings}")
+                        return settings
+                except Exception as e:
+                    logger.warning(f"Failed to load hot money settings from DB: {e}")
+
+        except Exception as e:
+            logger.warning(f"Config service error: {e}")
+
+        # 返回默认设置
+        default_settings = {
+            "enabled": True,
+            "fixed_times": ["06:00"]
+        }
+        logger.info(f"Using default hot money sync settings: {default_settings}")
+        return default_settings

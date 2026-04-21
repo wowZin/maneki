@@ -143,8 +143,9 @@ const Overview: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <Spin size="large" tip="加载中..." />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>加载中...</div>
       </div>
     )
   }

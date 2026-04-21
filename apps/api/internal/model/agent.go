@@ -21,6 +21,10 @@ type Agent struct {
 	Type        string `json:"type" gorm:"size:30;not null"` // technical/fundamental/sentiment/capital/decision
 	Category    string `json:"category" gorm:"size:50"`
 
+	// LLM 配置
+	Prompt string `json:"prompt" gorm:"type:text"`       // 提示词
+	Model  string `json:"model" gorm:"size:100"`          // 模型选择
+
 	// 策略配置
 	StrategyConfig JSON `json:"strategy_config,omitempty" gorm:"type:jsonb"`
 

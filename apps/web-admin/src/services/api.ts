@@ -74,6 +74,10 @@ api.interceptors.response.use(
       // 处理特定错误码
       switch (status) {
         case 401:
+          // 避免在登录/改密页面触发无限跳转循环
+          if (window.location.pathname === '/login' || window.location.pathname === '/change-password') {
+            break
+          }
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
           window.location.href = '/login'

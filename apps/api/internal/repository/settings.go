@@ -101,3 +101,80 @@ func (r *SettingsRepository) GetDefaultNewsSyncSettings() *model.NewsSyncSetting
 func (r *SettingsRepository) SaveNewsSyncSettings(ctx context.Context, settings *model.NewsSyncSettings) error {
 	return r.Set(ctx, "news_sync", "config", settings)
 }
+
+// GetTopListSyncSettings 获取龙虎榜同步设置
+func (r *SettingsRepository) GetTopListSyncSettings(ctx context.Context) (*model.TopListSyncSettings, error) {
+	var settings model.TopListSyncSettings
+
+	// 尝试从数据库获取
+	if err := r.GetJSON(ctx, "top_list_sync", "config", &settings); err != nil {
+		// 如果没有设置，返回默认值
+		return r.GetDefaultTopListSyncSettings(), nil
+	}
+
+	return &settings, nil
+}
+
+// GetDefaultTopListSyncSettings 获取默认龙虎榜同步设置
+func (r *SettingsRepository) GetDefaultTopListSyncSettings() *model.TopListSyncSettings {
+	return &model.TopListSyncSettings{
+		FixedTimes: []string{"15:30"},
+	}
+}
+
+// SaveTopListSyncSettings 保存龙虎榜同步设置
+func (r *SettingsRepository) SaveTopListSyncSettings(ctx context.Context, settings *model.TopListSyncSettings) error {
+	return r.Set(ctx, "top_list_sync", "config", settings)
+}
+
+// GetTopInstSyncSettings 获取龙虎榜机构交易名单同步设置
+func (r *SettingsRepository) GetTopInstSyncSettings(ctx context.Context) (*model.TopInstSyncSettings, error) {
+	var settings model.TopInstSyncSettings
+
+	// 尝试从数据库获取
+	if err := r.GetJSON(ctx, "top_inst_sync", "config", &settings); err != nil {
+		// 如果没有设置，返回默认值
+		return r.GetDefaultTopInstSyncSettings(), nil
+	}
+
+	return &settings, nil
+}
+
+// GetDefaultTopInstSyncSettings 获取默认龙虎榜机构交易名单同步设置
+func (r *SettingsRepository) GetDefaultTopInstSyncSettings() *model.TopInstSyncSettings {
+	return &model.TopInstSyncSettings{
+		Enabled:    true,
+		FixedTimes: []string{"15:30"},
+	}
+}
+
+// SaveTopInstSyncSettings 保存龙虎榜机构交易名单同步设置
+func (r *SettingsRepository) SaveTopInstSyncSettings(ctx context.Context, settings *model.TopInstSyncSettings) error {
+	return r.Set(ctx, "top_inst_sync", "config", settings)
+}
+
+// GetHotMoneySyncSettings 获取游资名录同步设置
+func (r *SettingsRepository) GetHotMoneySyncSettings(ctx context.Context) (*model.HotMoneySyncSettings, error) {
+	var settings model.HotMoneySyncSettings
+
+	// 尝试从数据库获取
+	if err := r.GetJSON(ctx, "hot_money_sync", "config", &settings); err != nil {
+		// 如果没有设置，返回默认值
+		return r.GetDefaultHotMoneySyncSettings(), nil
+	}
+
+	return &settings, nil
+}
+
+// GetDefaultHotMoneySyncSettings 获取默认游资名录同步设置
+func (r *SettingsRepository) GetDefaultHotMoneySyncSettings() *model.HotMoneySyncSettings {
+	return &model.HotMoneySyncSettings{
+		Enabled:    true,
+		FixedTimes: []string{"06:00"},
+	}
+}
+
+// SaveHotMoneySyncSettings 保存游资名录同步设置
+func (r *SettingsRepository) SaveHotMoneySyncSettings(ctx context.Context, settings *model.HotMoneySyncSettings) error {
+	return r.Set(ctx, "hot_money_sync", "config", settings)
+}

@@ -46,12 +46,18 @@ type AgentResponse struct {
 	Avatar      string  `json:"avatar"`
 	Type        string  `json:"type"`
 	Category    string  `json:"category"`
+	Prompt      string  `json:"prompt"`
+	Model       string  `json:"model"`
 	Price       float64 `json:"price"`
 	PriceType   string  `json:"price_type"`
 	IsFeatured  bool    `json:"is_featured"`
 	IsOfficial  bool    `json:"is_official"`
+	IsActive    bool    `json:"is_active"`
 	UseCount    int     `json:"use_count"`
 	Rating      float64 `json:"rating"`
+	OwnerID     *string `json:"owner_id,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 // ListAgents 获取Agent列表
@@ -79,24 +85,11 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 
 	var response []*AgentResponse
 	for _, agent := range agents {
-		response = append(response, &AgentResponse{
-			ID:          agent.ID,
-			Name:        agent.Name,
-			Description: agent.Description,
-			Avatar:      agent.Avatar,
-			Type:        agent.Type,
-			Category:    agent.Category,
-			Price:       agent.Price,
-			PriceType:   agent.PriceType,
-			IsFeatured:  agent.IsFeatured,
-			IsOfficial:  agent.IsOfficial,
-			UseCount:    agent.UseCount,
-			Rating:      agent.Rating,
-		})
+		response = append(response, agentToResponse(agent))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  response,
+		"items": response,
 		"total": total,
 		"page":  req.Page,
 		"size":  req.PageSize,
@@ -121,20 +114,7 @@ func (h *AgentHandler) GetAgent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, AgentResponse{
-		ID:          agent.ID,
-		Name:        agent.Name,
-		Description: agent.Description,
-		Avatar:      agent.Avatar,
-		Type:        agent.Type,
-		Category:    agent.Category,
-		Price:       agent.Price,
-		PriceType:   agent.PriceType,
-		IsFeatured:  agent.IsFeatured,
-		IsOfficial:  agent.IsOfficial,
-		UseCount:    agent.UseCount,
-		Rating:      agent.Rating,
-	})
+	c.JSON(http.StatusOK, agentToResponse(agent))
 }
 
 // ListFeaturedAgents 获取精选Agent列表
@@ -147,23 +127,38 @@ func (h *AgentHandler) ListFeaturedAgents(c *gin.Context) {
 
 	var response []*AgentResponse
 	for _, agent := range agents {
-		response = append(response, &AgentResponse{
-			ID:          agent.ID,
-			Name:        agent.Name,
-			Description: agent.Description,
-			Avatar:      agent.Avatar,
-			Type:        agent.Type,
-			Category:    agent.Category,
-			Price:       agent.Price,
-			PriceType:   agent.PriceType,
-			IsFeatured:  agent.IsFeatured,
-			IsOfficial:  agent.IsOfficial,
-			UseCount:    agent.UseCount,
-			Rating:      agent.Rating,
-		})
+		response = append(response, agentToResponse(agent))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": response})
+}
+
+// agentToResponse 将模型转换为响应
+func agentToResponse(agent *model.Agent) *AgentResponse {
+	resp := &AgentResponse{
+		ID:          agent.ID,
+		Name:        agent.Name,
+		Description: agent.Description,
+		Avatar:      agent.Avatar,
+		Type:        agent.Type,
+		Category:    agent.Category,
+		Prompt:      agent.Prompt,
+		Model:       agent.Model,
+		Price:       agent.Price,
+		PriceType:   agent.PriceType,
+		IsFeatured:  agent.IsFeatured,
+		IsOfficial:  agent.IsOfficial,
+		IsActive:    agent.IsActive,
+		UseCount:    agent.UseCount,
+		Rating:      agent.Rating,
+		CreatedAt:   agent.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   agent.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+	if agent.OwnerID != nil {
+		uid := agent.OwnerID.String()
+		resp.OwnerID = &uid
+	}
+	return resp
 }
 
 // GetMyAgentWeights 获取用户的Agent权重配置
@@ -261,11 +256,13 @@ func (h *AgentHandler) ListMySubscriptions(c *gin.Context) {
 
 // CreateAgentRequest 创建Agent请求
 type CreateAgentRequest struct {
-	Name           string     `json:"name" binding:"required,max=100"`
-	Description    string     `json:"description"`
+	Name           string     `json:"name" binding:"required,max=30"`
+	Description    string     `json:"description" binding:"max=300"`
 	Avatar         string     `json:"avatar"`
 	Type           string     `json:"type" binding:"required,max=30"`
 	Category       string     `json:"category"`
+	Prompt         string     `json:"prompt"`
+	Model          string     `json:"model"`
 	Price          float64    `json:"price"`
 	PriceType      string     `json:"price_type"`
 	StrategyConfig model.JSON `json:"strategy_config"`
@@ -291,16 +288,36 @@ func (h *AgentHandler) CreateAgent(c *gin.Context) {
 		return
 	}
 
+	// 检查名称是否已存在
+	existing, err := h.agentRepo.GetByName(c.Request.Context(), req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent name"})
+		return
+	}
+	if existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "agent name already exists"})
+		return
+	}
+
+	isSuperuser, _ := c.Get("is_superuser")
+	isOfficial := false
+	if isSuperuser != nil && isSuperuser.(bool) {
+		isOfficial = true
+	}
+
 	agent := &model.Agent{
 		Name:           req.Name,
 		Description:    req.Description,
 		Avatar:         req.Avatar,
 		Type:           req.Type,
 		Category:       req.Category,
+		Prompt:         req.Prompt,
+		Model:          req.Model,
 		Price:          req.Price,
 		PriceType:      req.PriceType,
 		StrategyConfig: req.StrategyConfig,
 		IsActive:       true,
+		IsOfficial:     isOfficial,
 		OwnerID:        &uid,
 	}
 
@@ -309,10 +326,7 @@ func (h *AgentHandler) CreateAgent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":      agent.ID,
-		"message": "agent created successfully",
-	})
+	c.JSON(http.StatusCreated, agentToResponse(agent))
 }
 
 // UpdateAgent 更新Agent
@@ -353,6 +367,8 @@ func (h *AgentHandler) UpdateAgent(c *gin.Context) {
 	agent.Avatar = req.Avatar
 	agent.Type = req.Type
 	agent.Category = req.Category
+	agent.Prompt = req.Prompt
+	agent.Model = req.Model
 	agent.Price = req.Price
 	agent.PriceType = req.PriceType
 	agent.StrategyConfig = req.StrategyConfig
@@ -398,6 +414,42 @@ func (h *AgentHandler) DeleteAgent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "agent deleted successfully"})
+}
+
+// ListAgentsAdmin 管理员获取Agent列表（支持搜索、返回所有状态）
+func (h *AgentHandler) ListAgentsAdmin(c *gin.Context) {
+	var req struct {
+		Search   string `form:"search"`
+		Page     int    `form:"page,default=1"`
+		PageSize int    `form:"page_size,default=20"`
+	}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	filters := make(map[string]interface{})
+	if req.Search != "" {
+		filters["search"] = req.Search
+	}
+
+	agents, total, err := h.agentRepo.ListAdmin(c.Request.Context(), filters, req.Page, req.PageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch agents"})
+		return
+	}
+
+	var response []*AgentResponse
+	for _, agent := range agents {
+		response = append(response, agentToResponse(agent))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": response,
+		"total": total,
+		"page":  req.Page,
+		"size":  req.PageSize,
+	})
 }
 
 // SetFeatured 设置Agent为精选（管理员）

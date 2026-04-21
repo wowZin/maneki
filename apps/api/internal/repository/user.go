@@ -150,3 +150,75 @@ func (r *UserRepository) Search(ctx context.Context, keyword string, page, pageS
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&model.User{}, "id = ?", id).Error
 }
+
+// CountSuperusers 统计超管数量
+func (r *UserRepository) CountSuperusers(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.User{}).Where("is_superuser = ?", true).Count(&count).Error
+	return count, err
+}
+
+// CountActiveSuperusers 统计活跃超管数量
+func (r *UserRepository) CountActiveSuperusers(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.User{}).
+		Where("is_superuser = ? AND is_active = ?", true, true).
+		Count(&count).Error
+	return count, err
+}
+
+// SearchWithFilters 带过滤条件的搜索
+func (r *UserRepository) SearchWithFilters(ctx context.Context, keyword string, isSuperuser, isActive *bool, vipLevel *int, page, pageSize int) ([]*model.User, int64, error) {
+	var users []*model.User
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&model.User{})
+
+	// 关键词搜索
+	if keyword != "" {
+		likeKeyword := fmt.Sprintf("%%%s%%", keyword)
+		query = query.Where("email LIKE ? OR username LIKE ? OR nickname LIKE ? OR phone LIKE ?",
+			likeKeyword, likeKeyword, likeKeyword, likeKeyword)
+	}
+
+	// 超管筛选
+	if isSuperuser != nil {
+		query = query.Where("is_superuser = ?", *isSuperuser)
+	}
+
+	// 状态筛选
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	// VIP等级筛选
+	if vipLevel != nil {
+		query = query.Where("vip_level = ?", *vipLevel)
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	err = query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error
+	return users, total, err
+}
+
+// GetStats 获取用户统计
+func (r *UserRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
+	var totalUsers, activeUsers, superusers, vipUsers int64
+
+	r.db.WithContext(ctx).Model(&model.User{}).Count(&totalUsers)
+	r.db.WithContext(ctx).Model(&model.User{}).Where("is_active = ?", true).Count(&activeUsers)
+	r.db.WithContext(ctx).Model(&model.User{}).Where("is_superuser = ?", true).Count(&superusers)
+	r.db.WithContext(ctx).Model(&model.User{}).Where("vip_level > ?", 0).Count(&vipUsers)
+
+	return map[string]interface{}{
+		"total_users":   totalUsers,
+		"active_users":  activeUsers,
+		"superusers":    superusers,
+		"vip_users":     vipUsers,
+	}, nil
+}

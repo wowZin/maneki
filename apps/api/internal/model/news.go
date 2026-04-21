@@ -6,14 +6,15 @@ import (
 
 // News 新闻资讯模型
 type News struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	Title     string    `json:"title" gorm:"size:500;index"`                       // 新闻标题
-	Content   string    `json:"content" gorm:"type:text"`                          // 新闻内容
-	Source    string    `json:"source" gorm:"size:50;index"`                       // 信息来源
-	SourceURL string    `json:"source_url" gorm:"size:1000"`                       // 原文链接
-	NewsDate  string    `json:"news_date" gorm:"size:8;index;index:idx_source_date"` // 新闻日期 YYYYMMDD
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	Title       string    `json:"title" gorm:"size:500;index"`                       // 新闻标题
+	Content     string    `json:"content" gorm:"type:text"`                          // 新闻内容
+	Source      string    `json:"source" gorm:"size:50;index"`                       // 信息来源
+	SourceURL   string    `json:"source_url" gorm:"size:1000"`                       // 原文链接
+	NewsDate    string    `json:"news_date" gorm:"size:8;index;index:idx_source_date"` // 新闻日期 YYYYMMDD
+	PublishTime string    `json:"publish_time" gorm:"size:16"`                       // 发布时间 HH:MM
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (News) TableName() string {

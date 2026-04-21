@@ -16,6 +16,12 @@ import {
   Row,
   Col,
   Tooltip,
+  Form,
+  Modal,
+  TimePicker,
+  Divider,
+  Radio,
+  InputNumber,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,10 +29,15 @@ import {
   DeleteOutlined,
   DatabaseOutlined,
   EyeOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+  PlusOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { datasourceApi } from '../../services/datasource'
+import type { ColumnsType } from 'antd/es/table'
 
 const { RangePicker } = DatePicker
 
@@ -49,7 +60,13 @@ const NewsManagement: React.FC = () => {
     pageSize: 10,
     total: 0,
   })
-  
+
+  // 设置弹窗
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+  const [settingsForm] = Form.useForm()
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [timeMode, setTimeMode] = useState<'fixed' | 'interval'>('fixed')
+
   // 查询参数
   const [searchParams, setSearchParams] = useState({
     keyword: '',
@@ -67,6 +84,25 @@ const NewsManagement: React.FC = () => {
     { label: '东方财富', value: 'eastmoney' },
     { label: '第一财经', value: 'yicai' },
   ]
+
+  // 手动同步新闻
+  const handleSyncNews = async () => {
+    setLoading(true)
+    try {
+      const result = await datasourceApi.syncNews()
+      if (result.code === 0) {
+        message.success('同步成功，正在刷新列表...')
+        // 同步成功后刷新列表
+        await fetchNews(pagination.current, pagination.pageSize)
+      } else {
+        message.error(result.message || '同步失败')
+      }
+    } catch (error) {
+      message.error('同步请求失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // 获取新闻列表
   const fetchNews = async (page = 1, pageSize = 10) => {
@@ -133,8 +169,64 @@ const NewsManagement: React.FC = () => {
     }
   }
 
+  // 打开设置弹窗
+  const handleOpenSettings = async () => {
+    setSettingsModalVisible(true)
+    setSettingsLoading(true)
+    try {
+      const result = await datasourceApi.getNewsSyncSettings()
+      if (result.data) {
+        const mode = result.data.time_mode || 'fixed'
+        setTimeMode(mode)
+        const fixedTimes = (result.data.fixed_times || ['08:00', '12:00', '15:30']).map((t: string) =>
+          dayjs(t, 'HH:mm')
+        )
+        settingsForm.setFieldsValue({
+          time_mode: mode,
+          interval_hours: result.data.interval_hours || 1,
+          fixed_times: fixedTimes,
+          sources: result.data.sources || ['global_futu', 'global_ths', 'global_cls', 'global_sina'],
+        })
+      }
+    } catch (error) {
+      setTimeMode('fixed')
+      settingsForm.setFieldsValue({
+        time_mode: 'fixed',
+        interval_hours: 1,
+        fixed_times: [dayjs('08:00', 'HH:mm'), dayjs('12:00', 'HH:mm'), dayjs('15:30', 'HH:mm')],
+        sources: ['global_futu', 'global_ths', 'global_cls', 'global_sina'],
+      })
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // 保存设置
+  const handleSaveSettings = async (values: any) => {
+    try {
+      const payload: any = {
+        time_mode: values.time_mode,
+        sources: values.sources,
+      }
+
+      if (values.time_mode === 'fixed') {
+        payload.fixed_times = values.fixed_times
+          .filter((t: any) => t)
+          .map((t: any) => t.format('HH:mm'))
+      } else {
+        payload.interval_hours = values.interval_hours
+      }
+
+      await datasourceApi.saveNewsSyncSettings(payload)
+      message.success('设置保存成功')
+      setSettingsModalVisible(false)
+    } catch (error) {
+      message.error('保存设置失败')
+    }
+  }
+
   // 表格列定义
-  const columns = [
+  const columns: ColumnsType<NewsItem> = [
     {
       title: '索引',
       dataIndex: 'index',
@@ -149,7 +241,7 @@ const NewsManagement: React.FC = () => {
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
-      render: (text: string, record: NewsItem) => (
+      render: (text: string) => (
         <Tooltip title={text}>
           <span style={{ fontWeight: 500 }}>{text}</span>
         </Tooltip>
@@ -197,19 +289,27 @@ const NewsManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       fixed: 'right',
       render: (_: any, record: NewsItem) => (
         <Space size="small">
+          <Button
+            type="text"
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => navigate(`/datasource/news/${record.id}`)}
+          >
+            详情
+          </Button>
           {record.url && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => window.open(record.url, '_blank')}
-            >
-              查看
-            </Button>
+            <Tooltip title="查看原文">
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => window.open(record.url, '_blank')}
+              />
+            </Tooltip>
           )}
           <Popconfirm
             title="确认删除"
@@ -218,9 +318,9 @@ const NewsManagement: React.FC = () => {
             okText="确认"
             cancelText="取消"
           >
-            <Button type="text" danger size="small" icon={<DeleteOutlined />}>
-              删除
-            </Button>
+            <Tooltip title="删除">
+              <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -249,8 +349,11 @@ const NewsManagement: React.FC = () => {
         }
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchNews()}>
-              刷新
+            <Button icon={<SettingOutlined />} onClick={handleOpenSettings}>
+              同步设置
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={handleSyncNews} loading={loading}>
+              强制刷新
             </Button>
           </Space>
         }
@@ -349,6 +452,121 @@ const NewsManagement: React.FC = () => {
           scroll={{ x: 1200 }}
         />
       </Card>
+
+      {/* 同步设置弹窗 */}
+      <Modal
+        title="新闻同步设置"
+        open={settingsModalVisible}
+        onOk={settingsForm.submit}
+        onCancel={() => setSettingsModalVisible(false)}
+        confirmLoading={settingsLoading}
+        width={640}
+      >
+        <Form
+          form={settingsForm}
+          layout="vertical"
+          onFinish={handleSaveSettings}
+        >
+          <Form.Item
+            name="time_mode"
+            label="同步模式"
+            rules={[{ required: true, message: '请选择同步模式' }]}
+          >
+            <Radio.Group onChange={(e) => setTimeMode(e.target.value)}>
+              <Radio value="fixed">固定时间</Radio>
+              <Radio value="interval">按间隔</Radio>
+            </Radio.Group>
+          </Form.Item>
+
+          {timeMode === 'interval' && (
+            <Form.Item
+              name="interval_hours"
+              label="间隔小时数"
+              rules={[{ required: true, message: '请输入间隔小时数' }]}
+            >
+              <InputNumber min={1} max={24} style={{ width: 200 }} />
+            </Form.Item>
+          )}
+
+          {timeMode === 'fixed' && (
+            <Form.Item
+              label="固定获取时间"
+              required
+              tooltip="设置每天自动获取新闻数据的时间点"
+            >
+              <Form.List name="fixed_times">
+                {(fields, { add, remove }) => (
+                  <>
+                    {fields.map((field) => (
+                      <Space key={field.key} align="baseline">
+                        <Form.Item
+                          {...field}
+                          validateTrigger={['onChange', 'onBlur']}
+                          rules={[
+                            {
+                              required: true,
+                              whitespace: true,
+                              message: '请选择时间',
+                            },
+                          ]}
+                          noStyle
+                        >
+                          <TimePicker
+                            format="HH:mm"
+                            placeholder="选择时间"
+                          />
+                        </Form.Item>
+                        {fields.length > 1 && (
+                          <MinusCircleOutlined
+                            onClick={() => remove(field.name)}
+                          />
+                        )}
+                      </Space>
+                    ))}
+                    <Form.Item>
+                      <Button
+                        type="dashed"
+                        onClick={() => add()}
+                        icon={<PlusOutlined />}
+                      >
+                        添加时间
+                      </Button>
+                    </Form.Item>
+                  </>
+                )}
+              </Form.List>
+            </Form.Item>
+          )}
+
+          <Form.Item
+            name="sources"
+            label="启用的数据源"
+            rules={[{ required: true, message: '请至少选择一个数据源' }]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="选择数据源"
+              options={[
+                { label: '富途牛牛', value: 'global_futu' },
+                { label: '同花顺', value: 'global_ths' },
+                { label: '财联社', value: 'global_cls' },
+                { label: '新浪财经', value: 'global_sina' },
+              ]}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
+          <div style={{ color: '#999', fontSize: 12 }}>
+            <Divider />
+            <p>提示：</p>
+            <ul>
+              <li>固定时间模式：系统将在设定的时间点自动抓取新闻数据</li>
+              <li>按间隔模式：系统将按照设定的小时间隔持续抓取新闻数据</li>
+              <li>建议设置为交易日开盘前后的时间，如 08:00、12:00、15:30</li>
+            </ul>
+          </div>
+        </Form>
+      </Modal>
     </div>
   )
 }

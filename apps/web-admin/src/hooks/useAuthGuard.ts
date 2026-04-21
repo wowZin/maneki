@@ -31,8 +31,8 @@ export const useAuthGuard = (options: AuthGuardOptions = {}) => {
         return
       }
 
-      // 检查是否为管理员
-      if (requireSuperuser && !user.is_superuser) {
+      // 检查是否为超级管理员
+      if (requireSuperuser && user.role !== 'super') {
         message.error('无权访问管理后台')
         navigate('/')
         return
@@ -48,7 +48,7 @@ export const useAuthGuard = (options: AuthGuardOptions = {}) => {
     isValidating: isLoading || isValidating,
     user,
     isAuthenticated,
-    isSuperuser: user?.is_superuser ?? false,
+    isSuperuser: user?.role === 'super',
   }
 }
 
