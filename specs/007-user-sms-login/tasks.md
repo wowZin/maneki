@@ -20,7 +20,7 @@
 **Purpose**: Add dependencies and environment configuration for Aliyun Phone Number Verification and SMS services
 
 - [ ] T001 [P] Add Aliyun Go SDK dependencies (`github.com/alibabacloud-go/dypnsapi-20170525` and/or `github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi`) to `apps/api/go.mod`
-- [ ] T002 [P] Add Aliyun H5 SDK script tag to `apps/web/index.html` (refer to Aliyun official CDN URL for `phone-number-server`)
+- [ ] T002 [P] Install Aliyun H5 SDK package: `cd apps/web && pnpm add aliyun_numberauthsdk_web`
 - [ ] T003 Configure environment variables for SMS/PNS in `apps/api/.env.example`: `SMS_MODE`, `ALIYUN_ACCESS_KEY_ID`, `ALIYUN_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, `ALIYUN_PNS_APP_KEY`
 
 ---

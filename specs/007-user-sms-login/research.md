@@ -36,7 +36,7 @@
   3. 接收前端提交的 `spToken` + `phone`，调用阿里云 `VerifyPhoneWithToken` 验证
   4. 验证通过后完成登录/自动注册
 - 前端职责：
-  1. 引入阿里云 `phone-number-server` H5 SDK（`<script>` 或 npm）
+  1. 安装并引入阿里云 H5 SDK（`npm install aliyun_numberauthsdk_web -S`）
   2. 初始化 `new PhoneNumberServer({...})`
   3. 从后端获取 Token，调用 SDK `checkAuthAvailable` 鉴权
   4. 调用 SDK `getVerifyToken` 获取 `spToken`

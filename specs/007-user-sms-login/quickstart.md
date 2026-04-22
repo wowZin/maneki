@@ -29,12 +29,11 @@ ALIYUN_PNS_APP_KEY=你的号码认证AppKey    # 号码认证专用
 - 号码认证接口固定返回成功（模拟通过）
 - 短信验证码固定为 `123456`，并打印到后端日志
 
-### 3. 前端引入阿里云 H5 SDK
+### 3. 前端安装阿里云 H5 SDK
 
 ```bash
-# 在 apps/web/index.html 的 <head> 中加入
-# <script src="https://cdn.aliyuncs.com/phone-number-server/phone-number-server.js"></script>
-# 或参考阿里云文档使用 npm 包
+cd apps/web
+pnpm add aliyun_numberauthsdk_web
 ```
 
 ### 4. 启动后端 API

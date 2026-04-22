@@ -71,7 +71,7 @@ apps/
     │   ├── services/
     │   │   └── api.ts            # [MODIFY] 增加号码认证 + 短信登录 API
     │   ├── hooks/
-    │   │   └── usePhoneAuth.ts   # [NEW] 阿里云号码认证 H5 SDK 封装
+    │   │   └── usePhoneAuth.ts   # [NEW] 封装 aliyun_numberauthsdk_web SDK
     │   └── stores/
     │       └── auth.ts           # 现有认证状态（复用）
     └── package.json
