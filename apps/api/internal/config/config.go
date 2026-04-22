@@ -39,6 +39,9 @@ type Config struct {
 
 	// VIP/返佣配置
 	VIP VIPConfig
+
+	// 短信/号码认证配置
+	SMS SMSConfig
 }
 
 // DatabaseConfig 数据库配置
@@ -110,6 +113,16 @@ type VIPConfig struct {
 	RebateMaxPerMonth      float64
 }
 
+// SMSConfig 短信/号码认证配置
+type SMSConfig struct {
+	Mode            string // mock | aliyun
+	AccessKeyID     string
+	AccessKeySecret string
+	SignName        string // 短信签名
+	TemplateCode    string // 短信模板Code
+	PNSAppKey       string // 号码认证AppKey
+}
+
 // Load 加载配置
 func Load() *Config {
 	return &Config{
@@ -178,6 +191,15 @@ func Load() *Config {
 			RebateMinVIPDays:     getEnvAsInt("REBATE_MIN_VIP_DAYS", 30),
 			RebateSettlementDays: getEnvAsInt("REBATE_SETTLEMENT_DAYS", 7),
 			RebateMaxPerMonth:    getEnvAsFloat("REBATE_MAX_PER_MONTH", 1000.0),
+		},
+
+		SMS: SMSConfig{
+			Mode:            getEnv("SMS_MODE", "mock"),
+			AccessKeyID:     getEnv("ALIYUN_ACCESS_KEY_ID", ""),
+			AccessKeySecret: getEnv("ALIYUN_ACCESS_KEY_SECRET", ""),
+			SignName:        getEnv("ALIYUN_SMS_SIGN_NAME", ""),
+			TemplateCode:    getEnv("ALIYUN_SMS_TEMPLATE_CODE", ""),
+			PNSAppKey:       getEnv("ALIYUN_PNS_APP_KEY", ""),
 		},
 	}
 }

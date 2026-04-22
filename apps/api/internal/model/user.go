@@ -19,7 +19,7 @@ type User struct {
 	Username string `json:"username" gorm:"uniqueIndex;size:50"`
 	FullName string `json:"full_name" gorm:"size:100"`
 	Nickname string `json:"nickname" gorm:"size:100"`
-	Phone    string `json:"phone" gorm:"size:20"`
+	Phone    string `json:"phone" gorm:"size:20;uniqueIndex:idx_users_phone"`
 	AvatarURL string `json:"avatar_url" gorm:"size:500"`
 
 	// 安全信息（不暴露给前端）
