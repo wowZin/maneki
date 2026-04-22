@@ -1,6 +1,6 @@
-# Quickstart: 短信验证码登录
+# Quickstart: 手机号登录（号码认证 + 短信验证码）
 
-**Feature**: 用户短信验证码登录
+**Feature**: 用户手机号登录
 **Date**: 2026-04-22
 
 ## 本地开发环境准备
@@ -9,100 +9,120 @@
 
 ```bash
 # 确保 PostgreSQL 和 Redis 已启动
-# 开发环境通常通过 Docker Compose 启动
 cd infra/
 docker-compose up -d postgres redis
 ```
 
-### 2. 配置短信 Mock 模式
+### 2. 配置阿里云环境变量（开发环境）
 
 ```bash
-# 在 apps/api 的 .env 或环境变量中设置
-SMS_PROVIDER=mock
-# 或
-SMS_MOCK=true
+# apps/api 的 .env 文件
+SMS_MODE=mock              # mock / aliyun
+ALIYUN_ACCESS_KEY_ID=your-ak
+ALIYUN_ACCESS_KEY_SECRET=your-sk
+ALIYUN_SMS_SIGN_NAME=你的短信签名
+ALIYUN_SMS_TEMPLATE_CODE=SMS_xxxxxx
+ALIYUN_PNS_APP_KEY=你的号码认证AppKey    # 号码认证专用
 ```
 
-Mock 模式下，验证码不会真实发送，而是：
-- 打印到后端日志（可在控制台查看）
-- 或者固定为 `123456`（开发专用）
+**Mock 模式**：
+- 号码认证接口固定返回成功（模拟通过）
+- 短信验证码固定为 `123456`，并打印到后端日志
 
-### 3. 启动后端 API
+### 3. 前端引入阿里云 H5 SDK
+
+```bash
+# 在 apps/web/index.html 的 <head> 中加入
+# <script src="https://cdn.aliyuncs.com/phone-number-server/phone-number-server.js"></script>
+# 或参考阿里云文档使用 npm 包
+```
+
+### 4. 启动后端 API
 
 ```bash
 cd apps/api
 go run cmd/main.go
 ```
 
-API 默认监听 `:8080`（具体端口取决于 `PORT` 环境变量）。
-
-### 4. 启动前端
+### 5. 启动前端
 
 ```bash
 cd apps/web
 pnpm dev
 ```
 
-前端默认运行在 `http://localhost:5173`。
-
-### 5. 验证接口
+### 6. 验证接口
 
 ```bash
-# 发送验证码
-curl -X POST http://localhost:8080/api/v1/auth/sms/send-code \
+# 获取号码认证 Token
+curl -X POST http://localhost:8080/api/v1/auth/phone/token
+
+# 号码认证登录（Mock 模式下 sp_token 可随意填写）
+curl -X POST http://localhost:8080/api/v1/auth/phone/verify \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000","sp_token":"mock_token"}'
+
+# 发送短信验证码（Fallback）
+curl -X POST http://localhost:8080/api/v1/auth/phone/send-code \
   -H "Content-Type: application/json" \
   -d '{"phone":"13800138000"}'
 
-# 使用验证码登录（假设收到的验证码是 123456）
-curl -X POST http://localhost:8080/api/v1/auth/sms/login \
+# 短信验证码登录
+curl -X POST http://localhost:8080/api/v1/auth/phone/login-by-code \
   -H "Content-Type: application/json" \
   -d '{"phone":"13800138000","code":"123456"}'
 ```
 
 ## 生产环境部署要点
 
-### 1. 短信服务商配置
+### 1. 阿里云控制台配置
 
-在环境变量中配置阿里云短信：
+- **号码认证服务**：在阿里云「号码认证服务」控制台创建 H5 应用，获取 AppKey
+- **短信服务**：在阿里云「短信服务」控制台申请签名和模板，确保审核通过
+- **RAM 授权**：为 AccessKey 授予 `AliyunDYPNSFullAccess`（号码认证）和 `AliyunDysmsFullAccess`（短信）权限
+
+### 2. 环境变量配置
 
 ```bash
-SMS_PROVIDER=aliyun
-ALIYUN_ACCESS_KEY_ID=your-access-key
-ALIYUN_ACCESS_KEY_SECRET=your-secret
-ALIYUN_SMS_SIGN_NAME=你的短信签名
+SMS_MODE=aliyun
+ALIYUN_ACCESS_KEY_ID=your-production-ak
+ALIYUN_ACCESS_KEY_SECRET=your-production-sk
+ALIYUN_SMS_SIGN_NAME=生产签名
 ALIYUN_SMS_TEMPLATE_CODE=SMS_xxxxxx
+ALIYUN_PNS_APP_KEY=生产AppKey
 ```
-
-### 2. 确保 Redis 可用
-
-验证码和频率限制完全依赖 Redis，生产环境必须确保 Redis 高可用。
 
 ### 3. 手机号唯一性
 
 首次部署前，检查并清理 `users` 表中重复的 `phone` 值，然后添加唯一索引：
 
 ```sql
--- 先清理重复数据（保留最新的一条）
--- 然后添加唯一索引（仅对非空手机号）
 CREATE UNIQUE INDEX idx_users_phone ON users (phone) WHERE phone IS NOT NULL AND phone <> '';
 ```
 
 ### 4. 监控告警
 
-建议关注的指标：
+- 号码认证成功率（低于 90% 告警，可能因非蜂窝环境导致）
 - 短信发送成功率（低于 95% 告警）
-- 验证码接口 QPS 和 P99 延迟
-- Redis 连接状态
-- 频繁触发频率限制的 IP（可能的攻击行为）
+- 登录接口 P99 延迟
+- 频繁触发限流的 IP
 
 ## 测试检查清单
 
-- [ ] 输入有效手机号，60 秒内成功收到验证码（Mock 模式查看日志）
-- [ ] 输入正确验证码，成功登录并拿到 Token
-- [ ] 使用未注册手机号登录，自动创建账户
+### 号码认证流程
+- [ ] 手机浏览器打开登录页，自动检测到支持号码认证
+- [ ] 输入有效手机号，点击「一键验证」，成功登录
+- [ ] 使用未注册手机号，自动创建账户并登录
+- [ ] 输入无效手机号格式，前端即时提示
+
+### 短信验证码 Fallback 流程
+- [ ] PC 浏览器打开登录页，自动降级为短信验证码模式
+- [ ] 输入有效手机号，成功收到验证码（Mock 模式查看日志）
+- [ ] 输入正确验证码，成功登录
 - [ ] 60 秒内重复请求验证码，提示频率限制
-- [ ] 输入错误验证码，提示验证码错误
-- [ ] 输入过期验证码，提示验证码已过期
+- [ ] 输入错误/过期验证码，提示验证失败
+
+### 通用
 - [ ] 登录成功后刷新页面，保持登录状态
 - [ ] 点击退出登录，清除状态并跳转登录页
-- [ ] 输入无效手机号格式，前端即时提示
+- [ ] 登录响应格式与现有账号密码登录完全一致
