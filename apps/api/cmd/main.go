@@ -123,6 +123,9 @@ func main() {
 		})
 	})
 
+	// 静态文件服务（头像上传）
+	r.Static("/uploads", "./uploads")
+
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
@@ -159,6 +162,13 @@ func main() {
 			// 用户相关
 			auth.GET("/auth/me", authHandler.GetMe)
 			auth.POST("/auth/logout", authHandler.Logout)
+
+			// 用户端个人信息
+			auth.GET("/users/me", userHandler.GetMeProfile)
+			auth.PUT("/users/me", userHandler.UpdateMe)
+			auth.POST("/users/me/avatar", userHandler.UploadAvatar)
+			auth.POST("/users/me/password", userHandler.ChangePassword)
+			auth.GET("/users/me/rebate", userHandler.GetMyRebate)
 
 			// Agent管理
 			auth.POST("/agents", agentHandler.CreateAgent)

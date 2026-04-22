@@ -2,9 +2,15 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,6 +18,7 @@ import (
 	"github.com/maneki/api/internal/model"
 	"github.com/maneki/api/internal/repository"
 	"github.com/maneki/api/internal/service"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // UserHandler 用户管理处理器
@@ -549,4 +556,335 @@ func (h *UserHandler) GetUserStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// ==================== 用户端个人信息接口 ====================
+
+// ProfileResponse 用户个人信息响应
+ type ProfileResponse struct {
+	ID            string  `json:"id"`
+	Nickname      string  `json:"nickname"`
+	AvatarURL     string  `json:"avatar_url"`
+	Phone         string  `json:"phone"`
+	VIPLevel      int     `json:"vip_level"`
+	VIPLevelName  string  `json:"vip_level_name"`
+	VIPLevelColor string  `json:"vip_level_color"`
+	VIPExpireAt   *string `json:"vip_expire_at,omitempty"`
+	CreatedAt     string  `json:"created_at"`
+}
+
+// MaskPhone 手机号脱敏
+func MaskPhone(phone string) string {
+	if len(phone) < 7 {
+		return phone
+	}
+	return phone[:3] + "****" + phone[len(phone)-4:]
+}
+
+// GetMeProfile 获取当前用户个人信息
+func (h *UserHandler) GetMeProfile(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未登录"})
+		return
+	}
+
+	id, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "invalid user id"})
+		return
+	}
+
+	user, err := h.userSvc.GetUser(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	resp := ProfileResponse{
+		ID:            user.ID.String(),
+		Nickname:      user.Nickname,
+		AvatarURL:     user.AvatarURL,
+		Phone:         MaskPhone(user.Phone),
+		VIPLevel:      user.VIPLevel,
+		VIPLevelName:  h.vipLevelToLabel(user.VIPLevel),
+		VIPLevelColor: h.vipLevelToColor(user.VIPLevel),
+		CreatedAt:     user.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+	if user.VIPExpireAt != nil {
+		expireAt := user.VIPExpireAt.Format("2006-01-02 15:04:05")
+		resp.VIPExpireAt = &expireAt
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": resp})
+}
+
+// UpdateMeRequest 修改个人信息请求
+type UpdateMeRequest struct {
+	Nickname string `json:"nickname" binding:"required,min=2,max=20"`
+}
+
+// UpdateMe 修改当前用户昵称
+func (h *UserHandler) UpdateMe(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未登录"})
+		return
+	}
+
+	id, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "invalid user id"})
+		return
+	}
+
+	var req UpdateMeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "昵称格式错误：2-20个字符"})
+		return
+	}
+
+	// 正则校验：中文/字母/数字/下划线
+	re := regexp.MustCompile("^[\\u4e00-\\u9fa5a-zA-Z0-9_]+$")
+	if !re.MatchString(req.Nickname) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "昵称只能包含中文、字母、数字或下划线"})
+		return
+	}
+
+	// 检查昵称唯一性
+	existing, err := h.userSvc.GetUser(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询用户失败"})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+		return
+	}
+
+	// 如果昵称没变，直接返回
+	if existing.Nickname == req.Nickname {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"id": id.String(), "nickname": req.Nickname}})
+		return
+	}
+
+	// 更新昵称
+	_, err = h.userSvc.UpdateUser(c.Request.Context(), id, &service.UpdateUserRequest{
+		Nickname: req.Nickname,
+	})
+	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"id": id.String(), "nickname": req.Nickname}})
+}
+
+// UploadAvatar 上传用户头像
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未登录"})
+		return
+	}
+
+	id, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "invalid user id"})
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请选择要上传的文件"})
+		return
+	}
+
+	// 校验文件大小 (5MB)
+	const maxSize = 5 * 1024 * 1024
+	if file.Size > maxSize {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "文件大小不能超过5MB"})
+		return
+	}
+
+	// 校验文件类型
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "仅支持 jpg/png 格式"})
+		return
+	}
+
+	// 打开上传文件
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取文件失败"})
+		return
+	}
+	defer src.Close()
+
+	// 读取前512字节检测MIME类型
+	buffer := make([]byte, 512)
+	n, err := src.Read(buffer)
+	if err != nil && err != io.EOF {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取文件失败"})
+		return
+	}
+	mimeType := http.DetectContentType(buffer[:n])
+	if !strings.HasPrefix(mimeType, "image/jpeg") && !strings.HasPrefix(mimeType, "image/png") {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "仅支持 jpg/png 格式"})
+		return
+	}
+
+	// 确保上传目录存在
+	uploadDir := "uploads/avatars"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建上传目录失败"})
+		return
+	}
+
+	// 生成唯一文件名
+	filename := fmt.Sprintf("%s_%d%s", id.String(), time.Now().Unix(), ext)
+	dstPath := filepath.Join(uploadDir, filename)
+
+	// 保存文件
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "保存文件失败"})
+		return
+	}
+	defer dst.Close()
+
+	// 将已读取的头部写回
+	if _, err := dst.Write(buffer[:n]); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "保存文件失败"})
+		return
+	}
+
+	// 复制剩余内容
+	if _, err := io.Copy(dst, src); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "保存文件失败"})
+		return
+	}
+
+	// 构建访问URL
+	avatarURL := fmt.Sprintf("/uploads/avatars/%s", filename)
+
+	// 更新用户头像
+	user, err := h.userSvc.GetUser(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询用户失败"})
+		return
+	}
+	user.AvatarURL = avatarURL
+	if err := h.userSvc.UpdateUserRaw(c.Request.Context(), user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新头像失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"avatar_url": avatarURL}})
+}
+
+// ChangePasswordRequest 修改密码请求
+type ChangePasswordRequest struct {
+	OldPassword     string `json:"old_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" binding:"required"`
+}
+
+// ChangePassword 修改当前用户密码
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未登录"})
+		return
+	}
+
+	id, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "invalid user id"})
+		return
+	}
+
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数校验失败：新密码至少6位"})
+		return
+	}
+
+	// 确认密码一致性
+	if req.NewPassword != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "两次输入的新密码不一致"})
+		return
+	}
+
+	// 获取用户
+	user, err := h.userSvc.GetUser(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询用户失败"})
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+		return
+	}
+
+	// 验证旧密码
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.OldPassword)); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "旧密码错误"})
+		return
+	}
+
+	// 更新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "密码加密失败"})
+		return
+	}
+
+	user.HashedPassword = string(hashedPassword)
+	if err := h.userSvc.UpdateUserRaw(c.Request.Context(), user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "密码修改失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "密码修改成功"})
+}
+
+// RebateSummaryResponse 返佣汇总响应
+type RebateSummaryResponse struct {
+	TotalRebate   float64 `json:"total_rebate"`
+	PendingRebate float64 `json:"pending_rebate"`
+	SettledRebate float64 `json:"settled_rebate"`
+	Currency      string  `json:"currency"`
+}
+
+// GetMyRebate 获取当前用户返佣汇总（仅SVIP）
+func (h *UserHandler) GetMyRebate(c *gin.Context) {
+	vipLevel, exists := c.Get("vip_level")
+	if !exists || vipLevel.(int) < 2 {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "仅SVIP用户可查看返佣数据"})
+		return
+	}
+
+	// TODO: 当前 rebate_records 表的 creator_id 为 uint 类型，
+	// 与 users 表的 uuid 主键不兼容。需要建立映射后才能查询真实数据。
+	// 目前返回零值，前端可正常渲染。
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": RebateSummaryResponse{
+			TotalRebate:   0,
+			PendingRebate: 0,
+			SettledRebate: 0,
+			Currency:      "¥",
+		},
+	})
 }
