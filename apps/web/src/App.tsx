@@ -17,6 +17,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Pricing from './pages/Pricing'
+import Profile from './pages/Profile'
 
 // Ant Design 主题配置 - 科技蓝青色调
 const theme = {
@@ -56,7 +57,7 @@ const App: React.FC = () => {
             <Route path="stocks" element={<div>股票监控（开发中）</div>} />
             <Route path="signals" element={<div>信号中心（开发中）</div>} />
             <Route path="replay" element={<div>回测分析（开发中）</div>} />
-            <Route path="profile" element={<div>个人中心（开发中）</div>} />
+            <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<div>设置（开发中）</div>} />
           </Route>
 

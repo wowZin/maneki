@@ -275,3 +275,11 @@ func (s *UserService) ToggleUserStatus(ctx context.Context, id uuid.UUID, enable
 func (s *UserService) GetUserStats(ctx context.Context) (map[string]interface{}, error) {
 	return s.userRepo.GetStats(ctx)
 }
+
+// UpdateUserRaw 直接更新用户模型（用于内部字段更新，如头像、密码）
+func (s *UserService) UpdateUserRaw(ctx context.Context, user *model.User) error {
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
+}
