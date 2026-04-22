@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,6 +13,7 @@ import (
 	"github.com/maneki/api/internal/middleware"
 	"github.com/maneki/api/internal/model"
 	"github.com/maneki/api/internal/repository"
+	"github.com/maneki/api/internal/service"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,16 +25,20 @@ type AuthHandler struct {
 	loginProtection *middleware.LoginProtection
 	auditLogger    *middleware.AuditLogger
 	tokenBlacklist *middleware.TokenBlacklist
+	smsService     service.SMSService
+	redis          *redis.Client
 }
 
 // NewAuthHandler 创建认证处理器
-func NewAuthHandler(cfg *config.Config, userRepo *repository.UserRepository, redis *redis.Client) *AuthHandler {
+func NewAuthHandler(cfg *config.Config, userRepo *repository.UserRepository, redisClient *redis.Client, smsSvc service.SMSService) *AuthHandler {
 	return &AuthHandler{
 		cfg:             cfg,
 		userRepo:        userRepo,
-		loginProtection: middleware.NewLoginProtection(redis),
-		auditLogger:     middleware.NewAuditLogger(redis),
-		tokenBlacklist:  middleware.NewTokenBlacklist(redis),
+		loginProtection: middleware.NewLoginProtection(redisClient),
+		auditLogger:     middleware.NewAuditLogger(redisClient),
+		tokenBlacklist:  middleware.NewTokenBlacklist(redisClient),
+		smsService:      smsSvc,
+		redis:           redisClient,
 	}
 }
 
@@ -70,6 +77,8 @@ type UserInfo struct {
 	VIPTier     string `json:"vip_tier"`
 	IsVIP       bool   `json:"is_vip"`
 	IsSuperuser bool   `json:"is_superuser"`
+	IsActive    bool   `json:"is_active"`
+	IsVerified  bool   `json:"is_verified"`
 }
 
 // Register 用户注册
@@ -420,4 +429,270 @@ func formatDuration(seconds int) string {
 		return fmt.Sprintf("%d小时%d分", hours, minutes)
 	}
 	return fmt.Sprintf("%d小时", hours)
+}
+
+// ==================== 手机号登录相关接口 ====================
+
+// PhoneTokenRequest 号码认证Token请求
+type PhoneTokenRequest struct {
+	Scene string `json:"scene,omitempty"`
+}
+
+// PhoneTokenResponse 号码认证Token响应
+type PhoneTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	JwtToken    string `json:"jwt_token"`
+	ExpireTime  int    `json:"expire_time"`
+}
+
+// PhoneVerifyRequest 号码认证登录请求
+type PhoneVerifyRequest struct {
+	Phone   string `json:"phone" binding:"required"`
+	SpToken string `json:"sp_token" binding:"required"`
+}
+
+// PhoneSendCodeRequest 发送验证码请求
+type PhoneSendCodeRequest struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+// PhoneLoginByCodeRequest 验证码登录请求
+type PhoneLoginByCodeRequest struct {
+	Phone string `json:"phone" binding:"required"`
+	Code  string `json:"code" binding:"required"`
+}
+
+// GetPhoneAuthToken 获取号码认证Token
+func (h *AuthHandler) GetPhoneAuthToken(c *gin.Context) {
+	tokenResult, err := h.smsService.GetAuthToken(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "认证服务暂不可用，请稍后重试"})
+		return
+	}
+
+	c.JSON(http.StatusOK, PhoneTokenResponse{
+		AccessToken: tokenResult.AccessToken,
+		JwtToken:    tokenResult.JwtToken,
+		ExpireTime:  tokenResult.ExpireTime,
+	})
+}
+
+// VerifyPhoneLogin 号码认证登录
+func (h *AuthHandler) VerifyPhoneLogin(c *gin.Context) {
+	var req PhoneVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	// 调用阿里云验证
+	if err := h.smsService.VerifyPhoneWithToken(c.Request.Context(), req.Phone, req.SpToken); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "手机号验证失败，请检查后重试"})
+		return
+	}
+
+	// 查找或创建用户
+	user, err := h.findOrCreateUserByPhone(c.Request.Context(), req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败，请稍后重试"})
+		return
+	}
+
+	if !user.IsActive {
+		c.JSON(http.StatusForbidden, gin.H{"error": "账号已被禁用，请联系客服"})
+		return
+	}
+
+	// 生成Token
+	if err := h.generateAndSetTokens(c, user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败，请稍后重试"})
+		return
+	}
+
+	h.auditLogger.Log("phone_login_success", user.ID.String(), req.Phone, nil, c)
+}
+
+// SendPhoneCode 发送短信验证码
+func (h *AuthHandler) SendPhoneCode(c *gin.Context) {
+	var req PhoneSendCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	// IP频率限制检查
+	ip := c.ClientIP()
+	ipLimitKey := fmt.Sprintf("sms:limit:ip:%s", ip)
+	ipCount, err := h.redis.Incr(c.Request.Context(), ipLimitKey).Result()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂不可用"})
+		return
+	}
+	if ipCount == 1 {
+		_ = h.redis.Expire(c.Request.Context(), ipLimitKey, 60*time.Second)
+	}
+	if ipCount > 10 {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error": "操作过于频繁，请稍后再试",
+			"code":  "rate_limited_ip",
+		})
+		return
+	}
+
+	// 发送验证码
+	_, err = h.smsService.SendVerifyCode(c.Request.Context(), req.Phone)
+	if err != nil {
+		if strings.Contains(err.Error(), "rate limited") {
+			// 获取剩余时间
+			phoneLimitKey := fmt.Sprintf("sms:limit:phone:%s", req.Phone)
+			ttl, _ := h.redis.TTL(c.Request.Context(), phoneLimitKey).Result()
+			retryAfter := int(ttl.Seconds())
+			if retryAfter < 0 {
+				retryAfter = 60
+			}
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "请稍后再试",
+				"code":        "rate_limited_phone",
+				"retry_after": retryAfter,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "短信发送失败，请稍后重试"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "验证码已发送"})
+}
+
+// LoginByPhoneCode 短信验证码登录
+func (h *AuthHandler) LoginByPhoneCode(c *gin.Context) {
+	var req PhoneLoginByCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	// 校验验证码
+	valid, err := h.smsService.ValidateVerifyCode(c.Request.Context(), req.Phone, req.Code)
+	if err != nil {
+		if strings.Contains(err.Error(), "expired") || strings.Contains(err.Error(), "not requested") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "验证码已过期，请重新获取",
+				"code":  "code_expired",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "验证失败，请稍后重试"})
+		return
+	}
+	if !valid {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "验证码错误，请重新输入",
+			"code":  "invalid_code",
+		})
+		return
+	}
+
+	// 查找或创建用户
+	user, err := h.findOrCreateUserByPhone(c.Request.Context(), req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败，请稍后重试"})
+		return
+	}
+
+	if !user.IsActive {
+		c.JSON(http.StatusForbidden, gin.H{"error": "账号已被禁用，请联系客服"})
+		return
+	}
+
+	// 生成Token
+	if err := h.generateAndSetTokens(c, user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败，请稍后重试"})
+		return
+	}
+
+	h.auditLogger.Log("phone_code_login_success", user.ID.String(), req.Phone, nil, c)
+}
+
+// findOrCreateUserByPhone 根据手机号查找或创建用户
+func (h *AuthHandler) findOrCreateUserByPhone(ctx context.Context, phone string) (*model.User, error) {
+	user, err := h.userRepo.GetByPhone(ctx, phone)
+	if err != nil {
+		return nil, err
+	}
+
+	if user != nil {
+		return user, nil
+	}
+
+	// 自动创建用户
+	maskedPhone := phone[:3] + "****" + phone[7:]
+	user = &model.User{
+		Phone:          phone,
+		Username:       phone,
+		Nickname:       maskedPhone,
+		RegisterSource: "phone",
+		IsActive:       true,
+		IsSuperuser:    false,
+		VIPLevel:       0,
+	}
+
+	if err := h.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// generateAndSetTokens 生成JWT并设置Cookie
+func (h *AuthHandler) generateAndSetTokens(c *gin.Context, user *model.User) error {
+	accessToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.AccessTokenExpire)
+	if err != nil {
+		return err
+	}
+
+	refreshToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.RefreshTokenExpire)
+	if err != nil {
+		return err
+	}
+
+	h.setTokenCookie(c, "access_token", accessToken, 14*24*60*60)
+	h.setTokenCookie(c, "refresh_token", refreshToken, int(h.cfg.JWT.RefreshTokenExpire.Seconds()))
+
+	c.JSON(http.StatusOK, TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    14 * 24 * 60 * 60,
+		User: UserInfo{
+			ID:          user.ID.String(),
+			Email:       user.Email,
+			Username:    user.Username,
+			Nickname:    user.Nickname,
+			AvatarURL:   user.AvatarURL,
+			VIPLevel:    user.VIPLevel,
+			VIPTier:     user.VIPTier(),
+			IsVIP:       user.IsVIP(),
+			IsSuperuser: user.IsSuperuser,
+			IsActive:    user.IsActive,
+			IsVerified:  user.IsVerified,
+		},
+	})
+
+	return nil
 }

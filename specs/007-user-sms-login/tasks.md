@@ -19,9 +19,9 @@
 
 **Purpose**: Add dependencies and environment configuration for Aliyun Phone Number Verification and SMS services
 
-- [ ] T001 [P] Add Aliyun Go SDK dependencies (`github.com/alibabacloud-go/dypnsapi-20170525` and/or `github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi`) to `apps/api/go.mod`
-- [ ] T002 [P] Install Aliyun H5 SDK package: `cd apps/web && pnpm add aliyun_numberauthsdk_web`
-- [ ] T003 Configure environment variables for SMS/PNS in `apps/api/.env.example`: `SMS_MODE`, `ALIYUN_ACCESS_KEY_ID`, `ALIYUN_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, `ALIYUN_PNS_APP_KEY`
+- [x] T001 [P] Add Aliyun Go SDK dependencies (`github.com/alibabacloud-go/dypnsapi-20170525` and/or `github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi`) to `apps/api/go.mod`
+- [x] T002 [P] Install Aliyun H5 SDK package: `cd apps/web && pnpm add aliyun_numberauthsdk_web`
+- [x] T003 Configure environment variables for SMS/PNS in `apps/api/.env.example`: `SMS_MODE`, `ALIYUN_ACCESS_KEY_ID`, `ALIYUN_ACCESS_KEY_SECRET`, `ALIYUN_SMS_SIGN_NAME`, `ALIYUN_SMS_TEMPLATE_CODE`, `ALIYUN_PNS_APP_KEY`
 
 ---
 
@@ -31,16 +31,16 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Extend `apps/api/internal/config/config.go` with SMS/PNS configuration structs and loading logic
-- [ ] T005 [P] Create `apps/api/internal/service/sms.go` with:
+- [x] T004 [P] Extend `apps/api/internal/config/config.go` with SMS/PNS configuration structs and loading logic
+- [x] T005 [P] Create `apps/api/internal/service/sms.go` with:
   - `SMSService` interface and implementation
   - Aliyun PNS `GetAuthToken` wrapper
   - Aliyun PNS `VerifyPhoneWithToken` wrapper
   - Aliyun SMS `SendSms` wrapper
   - Mock mode implementation for development (bypass real Aliyun calls, fixed code `123456`)
   - Phone validation helper (`^1[3-9]\d{9}$`)
-- [ ] T006 [P] Ensure `phone` field uniqueness in `apps/api/internal/model/user.go` or via migration; handle existing duplicate data gracefully
-- [ ] T007 Create `apps/web/src/hooks/usePhoneAuth.ts` — React hook wrapping Aliyun H5 SDK:
+- [x] T006 [P] Ensure `phone` field uniqueness in `apps/api/internal/model/user.go` or via migration; handle existing duplicate data gracefully
+- [x] T007 Create `apps/web/src/hooks/usePhoneAuth.ts` — React hook wrapping Aliyun H5 SDK:
   - `initPhoneNumberServer()` — initialize SDK
   - `checkAuthAvailable(token)` — check if PNS is supported in current environment
   - `getVerifyToken()` — get `spToken` from SDK
@@ -58,19 +58,19 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Extend `apps/api/internal/handler/auth.go`:
+- [x] T008 [P] [US1] Extend `apps/api/internal/handler/auth.go`:
   - Add `POST /auth/phone/token` handler — calls `smsService.GetAuthToken()`, returns `{access_token, jwt_token, expire_time}`
   - Add `POST /auth/phone/verify` handler — validates phone format, calls `smsService.VerifyPhoneWithToken()`, finds or creates user by phone, generates JWT, sets cookies, returns `TokenResponse`
-- [ ] T009 [P] [US1] Extend `apps/api/internal/handler/auth.go`:
+- [x] T009 [P] [US1] Extend `apps/api/internal/handler/auth.go`:
   - Add `POST /auth/phone/send-code` handler — validates phone, checks Redis rate limits (`sms:limit:phone:{phone}`, `sms:limit:ip:{ip}`), generates 6-digit code, stores in Redis (`sms:login:{phone}` TTL 300s), calls SMS service, returns success/error
   - Add `POST /auth/phone/login-by-code` handler — validates phone + code, checks Redis, finds or creates user by phone, generates JWT, clears Redis key, sets cookies, returns `TokenResponse`
-- [ ] T010 [US1] Register new phone auth routes in `apps/api/cmd/main.go` under `/api/v1/auth/phone/*`
-- [ ] T011 [P] [US1] Extend `apps/web/src/services/api.ts` with:
+- [x] T010 [US1] Register new phone auth routes in `apps/api/cmd/main.go` under `/api/v1/auth/phone/*`
+- [x] T011 [P] [US1] Extend `apps/web/src/services/api.ts` with:
   - `getPhoneAuthToken()` → `POST /auth/phone/token`
   - `verifyPhone(data)` → `POST /auth/phone/verify`
   - `sendSMSCode(data)` → `POST /auth/phone/send-code`
   - `loginByCode(data)` → `POST /auth/phone/login-by-code`
-- [ ] T012 [US1] Modify `apps/web/src/pages/Login/index.tsx`:
+- [x] T012 [US1] Modify `apps/web/src/pages/Login/index.tsx`:
   - Add "Account Password / Phone Number" tab switcher
   - Create `PhoneLoginForm` component section
   - Integrate `usePhoneAuth` hook: on mount, detect if PNS available
@@ -91,17 +91,17 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Add SMS code countdown and resend logic in `apps/web/src/pages/Login/index.tsx` (PhoneLoginForm section):
+- [x] T013 [P] [US2] Add SMS code countdown and resend logic in `apps/web/src/pages/Login/index.tsx` (PhoneLoginForm section):
   - 60-second countdown timer after clicking "Get Code"
   - Disable "Get Code" button during countdown, show remaining seconds
   - Re-enable button after countdown expires
   - Clear code input on resend
-- [ ] T014 [US2] Add SMS-specific error handling in `apps/web/src/pages/Login/index.tsx`:
+- [x] T014 [US2] Add SMS-specific error handling in `apps/web/src/pages/Login/index.tsx`:
   - Display "Invalid code" when backend returns `invalid_code`
   - Display "Code expired, please request a new one" when backend returns expired
   - Display rate limit messages from backend (`rate_limited_phone`, `rate_limited_ip`)
   - Auto-clear error messages on user input
-- [ ] T015 [US2] Ensure backend in `apps/api/internal/handler/auth.go` returns precise error codes for:
+- [x] T015 [US2] Ensure backend in `apps/api/internal/handler/auth.go` returns precise error codes for:
   - `invalid_code` — code mismatch
   - `code_expired` — Redis key missing or expired
   - `rate_limited_phone` — with remaining seconds in `retry_after`
@@ -119,9 +119,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Verify `apps/web/src/stores/auth.ts` persist configuration works correctly after phone login (token from phone login should be stored identically to password login)
-- [ ] T017 [US3] Verify `apps/api/internal/handler/auth.go` Logout handler clears both `access_token` and `refresh_token` httpOnly cookies for phone login sessions (should already work since JWT mechanism is shared)
-- [ ] T018 [US3] Add phone login success redirect to home (`/`) in `apps/web/src/pages/Login/index.tsx` — ensure same behavior as password login
+- [x] T016 [US3] Verify `apps/web/src/stores/auth.ts` persist configuration works correctly after phone login (token from phone login should be stored identically to password login)
+- [x] T017 [US3] Verify `apps/api/internal/handler/auth.go` Logout handler clears both `access_token` and `refresh_token` httpOnly cookies for phone login sessions (should already work since JWT mechanism is shared)
+- [x] T018 [US3] Add phone login success redirect to home (`/`) in `apps/web/src/pages/Login/index.tsx` — ensure same behavior as password login
 
 **Checkpoint**: Login state persistence and logout work correctly for phone-authenticated users.
 
@@ -131,11 +131,11 @@
 
 **Purpose**: Final validation, cleanup, and documentation
 
-- [ ] T019 [P] Run through `quickstart.md` validation checklist locally (Mock mode)
-- [ ] T020 [P] Add `board_accuracy` and other VIP fields to phone-auto-registered users default values (0, nil) in `apps/api/internal/handler/auth.go`
-- [ ] T021 Review error message Chinese copy in all frontend and backend responses for consistency
-- [ ] T022 Ensure `apps/api/internal/service/sms.go` Mock mode logs verification code to console for developer convenience
-- [ ] T023 Update `apps/web/src/services/api.ts` TypeScript types to include new phone auth interfaces
+- [x] T019 [P] Run through `quickstart.md` validation checklist locally (Mock mode)
+- [x] T020 [P] Add `board_accuracy` and other VIP fields to phone-auto-registered users default values (0, nil) in `apps/api/internal/handler/auth.go`
+- [x] T021 Review error message Chinese copy in all frontend and backend responses for consistency
+- [x] T022 Ensure `apps/api/internal/service/sms.go` Mock mode logs verification code to console for developer convenience
+- [x] T023 Update `apps/web/src/services/api.ts` TypeScript types to include new phone auth interfaces
 
 ---
 

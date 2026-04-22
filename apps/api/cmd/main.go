@@ -79,8 +79,14 @@ func main() {
 	antiArbitrageSvc := service.NewAntiArbitrageService(antiArbitrageRepo)
 	rebateStatsSvc := service.NewRebateStatsService(rebateRecordRepo)
 
+	// 初始化短信/号码认证服务
+	smsSvc, err := service.NewSMSService(&cfg.SMS, redisClient)
+	if err != nil {
+		log.Fatalf("Failed to init SMS service: %v", err)
+	}
+
 	// 初始化处理器
-	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient)
+	authHandler := handler.NewAuthHandler(cfg, userRepo, redisClient, smsSvc)
 	adminAuthHandler := handler.NewAdminAuthHandler(adminAuthSvc, auditSvc)
 	adminMgmtHandler := handler.NewAdminMgmtHandler(adminSvc, auditSvc)
 	auditHandler := handler.NewAuditHandler(auditSvc)
@@ -124,6 +130,12 @@ func main() {
 		v1.POST("/auth/register", authHandler.Register)
 		v1.POST("/auth/login", authHandler.Login)
 		v1.POST("/auth/refresh", authHandler.RefreshToken)
+
+		// 手机号登录（号码认证 + 短信验证码）
+		v1.POST("/auth/phone/token", authHandler.GetPhoneAuthToken)
+		v1.POST("/auth/phone/verify", authHandler.VerifyPhoneLogin)
+		v1.POST("/auth/phone/send-code", authHandler.SendPhoneCode)
+		v1.POST("/auth/phone/login-by-code", authHandler.LoginByPhoneCode)
 
 		// 公开路由 - 管理后台
 		v1.POST("/admin/auth/login", adminAuthHandler.AdminLogin)
@@ -411,7 +423,21 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		log.Printf("Warning: failed to create rebate rule indexes: %v", err)
 	}
 
+	// 创建手机号唯一索引（仅非空手机号）
+	if err := createPhoneUniqueIndex(db); err != nil {
+		log.Printf("Warning: failed to create phone unique index: %v", err)
+	}
+
 	return db, nil
+}
+
+// createPhoneUniqueIndex 创建手机号唯一索引
+func createPhoneUniqueIndex(db *gorm.DB) error {
+	return db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone
+		ON users (phone)
+		WHERE phone IS NOT NULL AND phone <> ''
+	`).Error
 }
 
 // createRebateRuleIndexes 创建返佣规则数据库约束

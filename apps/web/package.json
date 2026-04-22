@@ -15,6 +15,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
     "@maneki/shared-types": "workspace:*",
+    "aliyun_numberauthsdk_web": "^2.1.15",
     "antd": "^5.14.0",
     "axios": "^1.6.7",
     "dayjs": "^1.11.20",
