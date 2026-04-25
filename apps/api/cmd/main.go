@@ -97,7 +97,7 @@ func main() {
 	stockHandler := handler.NewStockHandler(dataProvider)
 	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo, topListRepo, topInstRepo, hotMoneyRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
-	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo)
+	dashboardHandler := handler.NewDashboardHandler(db, userRepo, agentRepo, rebateRecordRepo)
 	userHandler := handler.NewUserHandler(userSvc, auditSvc, weightRepo, subscriptionRepo, userLevelRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	sysNotificationHandler := handler.NewSystemNotificationHandler(sysNotificationRepo)
@@ -192,17 +192,12 @@ func main() {
 			auth.GET("/overview/user-tracking-trend", overviewHandler.GetUserTrackingTrend)
 			auth.GET("/overview/user-tracking-detail", overviewHandler.GetUserTrackingDetail)
 
-			// Agent管理
-			auth.POST("/agents", agentHandler.CreateAgent)
-			auth.PUT("/agents/:id", agentHandler.UpdateAgent)
-			auth.DELETE("/agents/:id", agentHandler.DeleteAgent)
-
 			// Agent权重
 			auth.GET("/agents/weights/my", agentHandler.GetMyAgentWeights)
 			auth.PUT("/agents/:id/weight", agentHandler.UpdateAgentWeight)
 
 			// 订阅管理
-			auth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
+			auth.GET("/subscriptions/my", agentHandler.GetMySubscriptions)
 
 			// Marketplace认证路由
 			auth.POST("/marketplace/agents/:id/subscribe", agentHandler.SubscribeAgent)

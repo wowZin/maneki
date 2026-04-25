@@ -48,17 +48,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>
 }
 
-// Ant Design 主题配置 - 科技蓝青色调
+// Ant Design 主题配置 - 暖色招财风格
 const theme = {
   token: {
-    colorPrimary: '#3b82f6',
-    colorInfo: '#06b6d4',
+    colorPrimary: '#e67e22',
+    colorInfo: '#d35400',
     colorSuccess: '#10b981',
-    colorWarning: '#f59e0b',
+    colorWarning: '#f39c12',
     colorError: '#ef4444',
     borderRadius: 12,
     borderRadiusLG: 16,
-    fontFamily: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
     fontFamilyCode: "'JetBrains Mono', 'Fira Code', monospace",
   },
 }

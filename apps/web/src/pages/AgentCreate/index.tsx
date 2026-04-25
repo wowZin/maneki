@@ -96,7 +96,7 @@ const AgentCreate: React.FC = () => {
         </Button>
       </div>
 
-      <Card style={{ borderRadius: 16 }}>
+      <Card className="glass-card">
         <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ maxWidth: 720 }}>
           <Form.Item name="name" label="Agent 名称" rules={[{ required: true, message: '请输入 Agent 名称' }, { validator: validateName }]} extra="不超过 30 个字符，创建后不可修改">
             <Input placeholder="例如：趋势跟踪专家" maxLength={30} showCount />
@@ -160,8 +160,8 @@ const AgentCreate: React.FC = () => {
                 key: 'preview', label: '预览',
                 children: (
                   <div
-                    style={{ minHeight: 280, padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb', overflow: 'auto' }}
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(promptValue) || '<span style="color:#9ca3af">暂无内容</span>' }}
+                    style={{ minHeight: 280, padding: 12, border: '1px solid rgba(200,170,130,0.25)', borderRadius: 8, background: '#fff8f0', overflow: 'auto' }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(promptValue) || '<span style="color:#a09080">暂无内容</span>' }}
                   />
                 ),
               },

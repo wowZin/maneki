@@ -101,7 +101,7 @@ const AgentDetail: React.FC = () => {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Card style={{ borderRadius: 16 }}>
+          <Card className="glass-card">
             <Space align="start" size={20}>
               <img
                 src={agent.avatar || '/default-agent-avatar.png'}
@@ -126,7 +126,7 @@ const AgentDetail: React.FC = () => {
 
             <Descriptions bordered size="small" style={{ marginTop: 24 }} column={2}>
               <Descriptions.Item label={<><RocketOutlined /> 预测准确率</>}>
-                <Text strong style={{ color: '#3b82f6' }}>
+                <Text strong style={{ color: '#e67e22' }}>
                   {agent.accuracy !== null ? `${agent.accuracy}%` : '暂无数据'}
                 </Text>
                 {agent.accuracy_period && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>({agent.accuracy_period})</Text>}
@@ -155,7 +155,7 @@ const AgentDetail: React.FC = () => {
             {agent.prompt && (
               <div style={{ marginTop: 24 }}>
                 <Title level={5}>提示词</Title>
-                <Card size="small" style={{ background: '#f8fafc', borderRadius: 8 }}>
+                <Card size="small" style={{ background: '#fff8f0', borderRadius: 8 }}>
                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 13 }}>{agent.prompt}</pre>
                 </Card>
               </div>
@@ -164,7 +164,7 @@ const AgentDetail: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card style={{ borderRadius: 16, position: 'sticky', top: 24 }}>
+          <Card className="glass-card" style={{ position: 'sticky', top: 24 }}>
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
               {agent.is_subscribed ? (
                 <Button type="primary" block disabled icon={<CheckCircleOutlined />}>

@@ -5,23 +5,26 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/maneki/api/internal/model"
 	"github.com/maneki/api/internal/repository"
 	"gorm.io/gorm"
 )
 
 // DashboardHandler 仪表盘处理器
 type DashboardHandler struct {
-	db           *gorm.DB
-	userRepo     *repository.UserRepository
-	agentRepo    *repository.AgentRepository
+	db               *gorm.DB
+	userRepo         *repository.UserRepository
+	agentRepo        *repository.AgentRepository
+	rebateRecordRepo *repository.RebateRecordRepository
 }
 
 // NewDashboardHandler 创建仪表盘处理器
-func NewDashboardHandler(db *gorm.DB, userRepo *repository.UserRepository, agentRepo *repository.AgentRepository) *DashboardHandler {
+func NewDashboardHandler(db *gorm.DB, userRepo *repository.UserRepository, agentRepo *repository.AgentRepository, rebateRecordRepo *repository.RebateRecordRepository) *DashboardHandler {
 	return &DashboardHandler{
-		db:        db,
-		userRepo:  userRepo,
-		agentRepo: agentRepo,
+		db:               db,
+		userRepo:         userRepo,
+		agentRepo:        agentRepo,
+		rebateRecordRepo: rebateRecordRepo,
 	}
 }
 
@@ -52,10 +55,10 @@ type RecentUser struct {
 
 // RecentRebate 最近返佣记录
 type RecentRebate struct {
-	OwnerEmail    string  `json:"owner_email"`
-	RebateAmount  float64 `json:"rebate_amount"`
-	Status        string  `json:"status"`
-	CreatedAt     string  `json:"created_at"`
+	AgentName    string  `json:"agent_name"`
+	RebateAmount float64 `json:"rebate_amount"`
+	Status       string  `json:"status"`
+	CreatedAt    string  `json:"created_at"`
 }
 
 // HotAgent 热门Agent
@@ -68,22 +71,51 @@ type HotAgent struct {
 
 // GetDashboardStats 获取仪表盘统计数据
 func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	yesterday := now.Add(-24 * time.Hour).Format("2006-01-02")
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	lastMonthStart := monthStart.AddDate(0, -1, 0)
+
 	// 统计总用户数
 	var totalUsers int64
 	h.db.Model(&User{}).Count(&totalUsers)
 
 	// 统计今日新增用户
-	today := time.Now().Format("2006-01-02")
 	var newUsersToday int64
 	h.db.Model(&User{}).Where("DATE(created_at) = ?", today).Count(&newUsersToday)
+
+	// 统计昨日新增用户（用于增长率）
+	var newUsersYesterday int64
+	h.db.Model(&User{}).Where("DATE(created_at) = ?", yesterday).Count(&newUsersYesterday)
 
 	// 统计VIP用户数
 	var vipUsers int64
 	h.db.Model(&User{}).Where("vip_level > ?", 0).Count(&vipUsers)
 
+	// 统计昨日VIP新增（用于增长率）
+	var vipUsersYesterday int64
+	h.db.Model(&User{}).Where("vip_level > ? AND DATE(created_at) = ?", 0, yesterday).Count(&vipUsersYesterday)
+
 	// 统计Agent总数
 	var totalAgents int64
 	h.db.Model(&Agent{}).Count(&totalAgents)
+
+	// 统计昨日新增Agent（用于增长率）
+	var totalAgentsYesterday int64
+	h.db.Model(&Agent{}).Where("DATE(created_at) = ?", yesterday).Count(&totalAgentsYesterday)
+
+	// 本月返佣统计
+	var monthlyRebate float64
+	h.db.Model(&model.RebateRecord{}).Select("COALESCE(SUM(amount), 0)").Where("created_at >= ?", monthStart).Scan(&monthlyRebate)
+
+	// 上月返佣（用于增长率）
+	var lastMonthRebate float64
+	h.db.Model(&model.RebateRecord{}).Select("COALESCE(SUM(amount), 0)").Where("created_at >= ? AND created_at < ?", lastMonthStart, monthStart).Scan(&lastMonthRebate)
+
+	// 待结算返佣
+	var pendingRebate float64
+	h.db.Model(&model.RebateRecord{}).Select("COALESCE(SUM(amount), 0)").Where("status = ?", "pending").Scan(&pendingRebate)
 
 	// 获取最近注册用户
 	var recentUsers []RecentUser
@@ -94,12 +126,24 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 		LIMIT 5
 	`).Scan(&recentUsers)
 
-	// 获取热门Agent（示例数据）
-	hotAgents := []HotAgent{
-		{ID: "1", Name: "技术分析助手", UsageCount: 1234, Rating: 4.8},
-		{ID: "2", Name: "基本面分析助手", UsageCount: 892, Rating: 4.6},
-		{ID: "3", Name: "量化策略助手", UsageCount: 756, Rating: 4.5},
-	}
+	// 获取热门Agent（真实数据）
+	var hotAgents []HotAgent
+	h.db.Raw(`
+		SELECT id::text, name, use_count, rating
+		FROM agents
+		ORDER BY use_count DESC
+		LIMIT 3
+	`).Scan(&hotAgents)
+
+	// 获取最近返佣记录
+	var recentRebates []RecentRebate
+	h.db.Raw(`
+		SELECT a.name as agent_name, r.amount as rebate_amount, r.status, r.created_at::text as created_at
+		FROM rebate_records r
+		JOIN agents a ON r.agent_id = a.id
+		ORDER BY r.created_at DESC
+		LIMIT 5
+	`).Scan(&recentRebates)
 
 	// 组装响应数据
 	stats := DashboardStats{
@@ -107,21 +151,29 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 		NewUsersToday: newUsersToday,
 		VIPUsers:      vipUsers,
 		TotalAgents:   totalAgents,
-		MonthlyRebate: 1234.56,
-		PendingRebate: 567.89,
-		UserGrowth:    12.5,
-		VIPGrowth:     8.3,
-		AgentGrowth:   15.2,
-		RebateGrowth:  23.1,
+		MonthlyRebate: monthlyRebate,
+		PendingRebate: pendingRebate,
+		UserGrowth:    calcGrowthRate(float64(newUsersToday), float64(newUsersYesterday)),
+		VIPGrowth:     calcGrowthRate(float64(vipUsers), float64(vipUsersYesterday)),
+		AgentGrowth:   calcGrowthRate(float64(totalAgents), float64(totalAgentsYesterday)),
+		RebateGrowth:  calcGrowthRate(monthlyRebate, lastMonthRebate),
 		RecentUsers:   recentUsers,
-		RecentRebates: []RecentRebate{
-			{OwnerEmail: "user1@example.com", RebateAmount: 99.99, Status: "settled", CreatedAt: time.Now().Add(-24 * time.Hour).Format("2006-01-02 15:04")},
-			{OwnerEmail: "user2@example.com", RebateAmount: 150.00, Status: "pending", CreatedAt: time.Now().Add(-48 * time.Hour).Format("2006-01-02 15:04")},
-		},
-		HotAgents: hotAgents,
+		RecentRebates: recentRebates,
+		HotAgents:     hotAgents,
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// calcGrowthRate 计算增长率，避免除以零
+func calcGrowthRate(current, previous float64) float64 {
+	if previous == 0 {
+		if current == 0 {
+			return 0
+		}
+		return 100.0
+	}
+	return ((current - previous) / previous) * 100
 }
 
 // User 简化用户模型（用于统计）

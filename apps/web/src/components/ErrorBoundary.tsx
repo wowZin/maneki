@@ -38,7 +38,7 @@ class ErrorBoundary extends Component<Props, State> {
           <h2 style={{ color: '#ef4444' }}>页面渲染出错</h2>
           <pre
             style={{
-              background: '#f8fafc',
+              background: '#fff8f0',
               padding: 16,
               borderRadius: 8,
               textAlign: 'left',
@@ -54,7 +54,7 @@ class ErrorBoundary extends Component<Props, State> {
             onClick={() => window.location.reload()}
             style={{
               padding: '10px 24px',
-              background: '#3b82f6',
+              background: '#e67e22',
               color: 'white',
               border: 'none',
               borderRadius: 8,

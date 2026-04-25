@@ -100,7 +100,7 @@ const AgentPerformanceTable: React.FC = () => {
     <Card
       title={
         <Space>
-          <BarChartOutlined style={{ color: '#8b5cf6' }} />
+          <BarChartOutlined style={{ color: '#c9a227' }} />
           <span>Agent 命中率</span>
         </Space>
       }

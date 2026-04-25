@@ -59,6 +59,7 @@ type AgentResponse struct {
 	IsActive    bool    `json:"is_active"`
 	UseCount    int     `json:"use_count"`
 	Rating      float64 `json:"rating"`
+	RatingCount int     `json:"rating_count"`
 	OwnerID     *string `json:"owner_id,omitempty"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
@@ -155,6 +156,7 @@ func agentToResponse(agent *model.Agent) *AgentResponse {
 		IsActive:    agent.IsActive,
 		UseCount:    agent.UseCount,
 		Rating:      agent.Rating,
+		RatingCount: agent.RatingCount,
 		CreatedAt:   agent.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   agent.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
@@ -232,30 +234,6 @@ func (h *AgentHandler) UpdateAgentWeight(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "weight updated successfully"})
-}
-
-// ListMySubscriptions 获取我的订阅列表
-func (h *AgentHandler) ListMySubscriptions(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
-		return
-	}
-
-	uid, err := uuid.Parse(userID.(string))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
-		return
-	}
-
-	status := c.Query("status")
-	subscriptions, err := h.subscriptionRepo.GetUserSubscriptions(c.Request.Context(), uid, status)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch subscriptions"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": subscriptions})
 }
 
 // CreateAgentRequest 创建Agent请求

@@ -1,5 +1,5 @@
 /**
- * 主布局组件 - 科技感主题
+ * 主布局组件 - 暖色招财主题
  */
 
 import React from 'react'
@@ -229,8 +229,8 @@ const Layout: React.FC = () => {
                   icon={<UserOutlined />}
                   src={user?.avatar_url}
                   style={{
-                    background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                    background: 'linear-gradient(135deg, #f39c12, #e67e22)',
+                    boxShadow: '0 2px 8px rgba(230, 126, 34, 0.3)'
                   }}
                 />
                 <Text style={{ color: 'var(--text-primary)', fontWeight: 500 }}>

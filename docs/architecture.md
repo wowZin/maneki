@@ -45,8 +45,8 @@
         │                             │                             │
 ┌───────▼───────┐          ┌──────────▼──────────┐       ┌─────────▼───────┐
 │   API 服务     │          │    Data-Service     │       │  Agent 服务     │
-│ (Python/      │          │   (Python/FastAPI)  │       │   (Go/OpenAI)   │
-│  FastAPI)     │          │                     │       │                 │
+│ (Go/Gin)      │          │   (Python/FastAPI)  │       │   (Go/OpenAI)   │
+│               │          │                     │       │                 │
 │               │          │ • K线数据获取        │       │ • Agent决策     │
 │ • 用户认证     │          │ • 新闻/舆情          │       │ • 加权投票      │
 │ • 看板数据     │          │ • 数据同步           │       │ • LLM调用       │
@@ -86,7 +86,7 @@
 
 | 模块 | 技术 | 职责 | 详细文档 |
 |------|------|------|----------|
-| **apps/api** | Python/FastAPI | 用户认证、看板数据、Agent管理、定时任务 | [apps/api/README.md](../apps/api/README.md) |
+| **apps/api** | Go/Gin | 用户认证、看板数据、Agent管理、定时任务 | [apps/api/README.md](../apps/api/README.md) |
 | **apps/service-data** | Python/FastAPI | 数据获取、同步、离线存储 | [apps/service-data/README.md](../apps/service-data/README.md) |
 | **apps/web** | Next.js/React | 用户端前端 | [apps/web/README.md](../apps/web/README.md) |
 | **packages/service-agent** | Go/OpenAI | Agent决策引擎（可复用库） | [packages/service-agent/README.md](../packages/service-agent/README.md) |
@@ -152,7 +152,7 @@ maneki/
 docker-compose -f infra/docker-compose.dev.yml up -d
 
 # 启动各服务
-cd apps/api && python main.py
+cd apps/api && go run cmd/main.go
 cd apps/service-data && python main.py
 cd apps/web && pnpm dev
 ```
@@ -183,17 +183,17 @@ docker-compose -f infra/docker-compose.yml up -d
 - [x] 多 Agent 决策系统
 - [x] 用户看板（多维度分析）
 - [x] Agent 配置管理
-- [ ] 实时信号推送 (SSE)
+- [x] 实时信号推送 (SSE)
 - [ ] 微信支付集成
 
 ### Phase 2: 智能版
-- [ ] Agent 权重自动优化
+- [x] Agent 权重自动优化
 - [ ] 用户行为学习
 - [ ] 智能复盘报告
-- [ ] 预警通知系统
+- [x] 预警通知系统
 
 ### Phase 3: 进化版
-- [ ] Agent 市场
+- [x] Agent 市场
 - [ ] 社区策略分享
 - [ ] 回测系统
 - [ ] 组合优化

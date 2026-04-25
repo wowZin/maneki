@@ -64,7 +64,7 @@ const HotStocksList: React.FC = () => {
                 <Badge
                   count={item.rank}
                   style={{
-                    backgroundColor: item.rank === 1 ? '#ef4444' : item.rank === 2 ? '#f59e0b' : item.rank === 3 ? '#3b82f6' : '#9ca3af',
+                    backgroundColor: item.rank === 1 ? '#ef4444' : item.rank === 2 ? '#f39c12' : item.rank === 3 ? '#e67e22' : '#a09080',
                     minWidth: 22,
                   }}
                 />

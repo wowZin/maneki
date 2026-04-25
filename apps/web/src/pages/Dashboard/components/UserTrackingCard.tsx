@@ -158,7 +158,7 @@ const UserTrackingCard: React.FC<UserTrackingCardProps> = ({ onViewDetail }) => 
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <div>
               <Text type="secondary" style={{ fontSize: 12 }}>近7日关注</Text>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#3b82f6' }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: '#e67e22' }}>
                 {data.summary.total_tracked}
               </div>
             </div>
