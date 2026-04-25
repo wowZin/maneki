@@ -10,22 +10,17 @@ import {
   Typography,
   Row,
   Col,
-  Space,
-  Tag,
   message,
   Skeleton,
   Empty,
 } from 'antd'
 import {
-  CrownOutlined,
-  StarOutlined,
-  ThunderboltOutlined,
-  CheckCircleOutlined,
   RocketOutlined,
   SafetyOutlined,
   SyncOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/auth'
+import { useUserProfileStore } from '../../stores/userProfile'
 import {
   pricingApi,
   PricingConfigResponse,
@@ -33,35 +28,17 @@ import {
   BillingCycle,
   MembershipTier,
 } from '../../services/pricing'
+import PricingCard from '../../components/PricingCard'
+import UserStatusBar from './UserStatusBar'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 const { Title, Text, Paragraph } = Typography
 
-// 图标映射 - 科技感配色
-const ICON_MAP: Record<string, React.ReactNode> = {
-  star: <StarOutlined />,
-  crown: <CrownOutlined />,
-  thunderbolt: <ThunderboltOutlined />,
-}
-
-// 颜色映射 - 蓝青科技色系
-const COLOR_MAP: Record<string, string> = {
-  blue: '#3b82f6',
-  gold: '#f59e0b',
-  purple: '#8b5cf6',
-  cyan: '#06b6d4',
-}
-
-// 渐变映射 - 科技感渐变
-const GRADIENT_MAP: Record<string, string> = {
-  blue: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
-  gold: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
-  purple: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
-  cyan: 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
-}
-
 const Pricing: React.FC = () => {
+  useDocumentTitle('会员定价 - Maneki')
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
+  const { profile } = useUserProfileStore()
 
   // 数据状态
   const [loading, setLoading] = useState(true)
@@ -79,7 +56,6 @@ const Pricing: React.FC = () => {
       setLoading(true)
       const data = await pricingApi.getPricingConfig()
       setPricingData(data)
-      // 设置默认选中的周期
       if (data.cycles.length > 0) {
         setSelectedCycle(data.cycles[0].cycle)
       }
@@ -89,6 +65,18 @@ const Pricing: React.FC = () => {
       setLoading(false)
     }
   }
+
+  // 当前用户 tier 映射
+  const currentTier = profile?.vip_level ?? 0
+  const tierMap: Record<number, MembershipTier> = {
+    0: 'basic',
+    1: 'vip',
+    2: 'svip',
+  }
+  const currentTierId = tierMap[currentTier] || 'basic'
+
+  // 获取周期信息
+  const cycleInfo = pricingData?.cycles.find((c) => c.cycle === selectedCycle)
 
   // 处理订阅
   const handleSubscribe = async (tier: MembershipTier) => {
@@ -112,32 +100,6 @@ const Pricing: React.FC = () => {
       })
 
       message.success('订单创建成功，正在跳转支付...')
-
-      // ============================================
-      // TODO: 支付对接 - 根据支付方式跳转
-      // ============================================
-
-      // 方案1: 跳转支付宝/微信支付页面
-      // if (order.pay_url) {
-      //   window.open(order.pay_url, '_blank')
-      // }
-
-      // 方案2: 显示支付二维码弹窗
-      // setQrCodeUrl(order.qr_code_url)
-      // setShowPayModal(true)
-
-      // 方案3: 微信内支付 (JSAPI)
-      // if (isWechat) {
-      //   wx.chooseWXPay({
-      //     timestamp: order.pay_config.timestamp,
-      //     nonceStr: order.pay_config.nonceStr,
-      //     package: order.pay_config.package,
-      //     signType: 'RSA',
-      //     paySign: order.pay_config.paySign,
-      //   })
-      // }
-
-      // 方案4: 跳转订单详情页等待支付
       navigate(`/order/${order.order_id}`)
     } catch (error: any) {
       message.error(error.response?.data?.message || '创建订单失败')
@@ -146,194 +108,40 @@ const Pricing: React.FC = () => {
     }
   }
 
-  // 格式化价格
-  const formatPrice = (price: number) => {
-    return price.toFixed(0)
-  }
-
-  // 渲染价格区域（支持折扣显示）
-  const renderPriceSection = (plan: MembershipPlan) => {
-    const priceDetail = plan.prices[selectedCycle]
-    const cycleInfo = pricingData?.cycles.find((c) => c.cycle === selectedCycle)
-
-    if (!priceDetail || !cycleInfo) return null
-
-    const {
-      original_price,
-      discounted_price,
-      discount_rate,
-      discount_label,
-      save_amount,
-    } = priceDetail
-
-    const hasDiscount = discount_rate < 1.0 && discounted_price < original_price
-
-    // 免费会员
-    if (plan.tier === 'basic') {
-      return (
-        <div className="pricing-price">
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, color: '#10b981' }}>
-            免费
-          </span>
-        </div>
-      )
-    }
-
-    return (
-      <div className="pricing-price">
-        {/* 折扣标签 */}
-        {hasDiscount && discount_label && (
-          <div style={{ marginBottom: 12 }}>
-            <Tag
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '4px 12px',
-                borderRadius: 20,
-                background: 'linear-gradient(135deg, #ef4444, #f97316)',
-                color: 'white',
-                border: 'none'
-              }}
-            >
-              {discount_label}
-            </Tag>
-          </div>
-        )}
-
-        <div>
-          <span className="pricing-currency">¥</span>
-          <span
-            className="pricing-amount"
-            style={{ color: hasDiscount ? '#ef4444' : 'var(--text-primary)' }}
-          >
-            {formatPrice(discounted_price)}
-          </span>
-          <span className="pricing-period">{cycleInfo.unit}</span>
-        </div>
-
-        {/* 原价和节省金额 */}
-        <div style={{ marginTop: 12, minHeight: 24 }}>
-          {hasDiscount ? (
-            <Space size={12}>
-              <Text style={{ fontSize: 15, color: 'var(--text-tertiary)', textDecoration: 'line-through' }}>
-                ¥{formatPrice(original_price)}
-              </Text>
-              {save_amount > 0 && (
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#10b981',
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    padding: '4px 10px',
-                    borderRadius: 12
-                  }}
-                >
-                  省¥{formatPrice(save_amount)}
-                </span>
-              )}
-            </Space>
-          ) : (
-            <Text style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-              原价 ¥{formatPrice(original_price)}
-            </Text>
-          )}
-        </div>
-      </div>
-    )
+  // 生成 CTA 文本
+  const getCTAText = (tier: MembershipTier): string => {
+    if (tier === currentTierId) return '当前方案'
+    if (currentTier >= 2 && tier !== 'basic') return '您已享受全部权益'
+    if (tier === 'basic') return '免费使用'
+    return '立即升级'
   }
 
   // 渲染价格卡片
   const renderPricingCard = (plan: MembershipPlan) => {
-    const icon = ICON_MAP[plan.icon] || <StarOutlined />
-    const color = COLOR_MAP[plan.color] || '#3b82f6'
-    const gradient = GRADIENT_MAP[plan.color] || GRADIENT_MAP.blue
-    const isPopular = plan.is_popular
-    const isFree = plan.tier === 'basic'
+    const priceDetail = plan.prices[selectedCycle]
+    const isCurrent = plan.tier === currentTierId
+    const isMaxTier = currentTier >= 2 && plan.tier !== 'basic'
+
+    // 计算展示价格
+    let displayPrice = 0
+    if (plan.tier !== 'basic' && priceDetail) {
+      displayPrice = priceDetail.discounted_price
+    }
 
     return (
-      <div
-        className={isPopular ? 'pricing-card pricing-card-popular' : 'pricing-card'}
-        style={{
-          transform: isPopular ? 'scale(1.02)' : 'scale(1)',
+      <PricingCard
+        plan={plan}
+        isCurrent={isCurrent}
+        ctaText={getCTAText(plan.tier)}
+        onCTAClick={() => {
+          if (!isCurrent && !isMaxTier) {
+            handleSubscribe(plan.tier)
+          }
         }}
-      >
-        {/* 徽章 */}
-        {plan.badge && (
-          <div className="pricing-badge">
-            {plan.badge}
-          </div>
-        )}
-
-        {/* 头部图标和名称 */}
-        <div
-          className="pricing-icon"
-          style={{ background: gradient }}
-        >
-          {icon}
-        </div>
-        <div
-          className="pricing-name"
-          style={{ color }}
-        >
-          {plan.name}
-        </div>
-        <div className="pricing-desc">{plan.description}</div>
-
-        {/* 价格区域 */}
-        {renderPriceSection(plan)}
-
-        {/* 功能亮点 */}
-        {!isFree && plan.highlights.length > 0 && (
-          <div style={{ marginBottom: 20, textAlign: 'center' }}>
-            <Space wrap size={8}>
-              {plan.highlights.map((highlight, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: '6px 14px',
-                    borderRadius: 20,
-                    background: `${color}15`,
-                    color: color,
-                  }}
-                >
-                  {highlight}
-                </span>
-              ))}
-            </Space>
-          </div>
-        )}
-
-        {/* 功能列表 */}
-        <div className="pricing-features">
-          {plan.features.map((feature, idx) => (
-            <div key={idx} className="pricing-feature">
-              <CheckCircleOutlined className="pricing-feature-icon" />
-              <span>{feature}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* 操作按钮 */}
-        <button
-          className={isPopular ? 'pricing-button pricing-button-primary' : 'pricing-button pricing-button-secondary'}
-          onClick={() => handleSubscribe(plan.tier)}
-          disabled={subscribing === plan.tier}
-          style={isPopular ? { background: gradient } : {}}
-        >
-          {subscribing === plan.tier ? (
-            <span className="tech-loading">
-              <span className="tech-loading-dot" style={{ width: 8, height: 8 }} />
-              <span className="tech-loading-dot" style={{ width: 8, height: 8 }} />
-              <span className="tech-loading-dot" style={{ width: 8, height: 8 }} />
-            </span>
-          ) : (
-            isFree ? '免费使用' : `订阅${plan.name}`
-          )}
-        </button>
-      </div>
+        unit={cycleInfo?.unit || '/月'}
+        price={displayPrice}
+        loading={subscribing === plan.tier}
+      />
     )
   }
 
@@ -417,6 +225,12 @@ const Pricing: React.FC = () => {
 
   return (
     <div style={{ padding: '20px 20px 60px', maxWidth: 1200, margin: '0 auto' }}>
+      {/* 用户状态栏（已登录时显示）*/}
+      {isAuthenticated && <UserStatusBar onUpgrade={() => {
+        const el = document.getElementById('pricing-cards')
+        el?.scrollIntoView({ behavior: 'smooth' })
+      }} />}
+
       {/* 页面标题 */}
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <Title
@@ -449,13 +263,15 @@ const Pricing: React.FC = () => {
       </div>
 
       {/* 价格卡片 */}
-      <Row gutter={[32, 32]} justify="center">
-        {pricingData.plans.map((plan) => (
-          <Col xs={24} md={8} key={plan.tier}>
-            {renderPricingCard(plan)}
-          </Col>
-        ))}
-      </Row>
+      <div id="pricing-cards">
+        <Row gutter={[32, 32]} justify="center">
+          {pricingData.plans.map((plan) => (
+            <Col xs={24} md={8} key={plan.tier}>
+              {renderPricingCard(plan)}
+            </Col>
+          ))}
+        </Row>
+      </div>
 
       {/* 底部说明 */}
       <div style={{ marginTop: 80 }}>
