@@ -1,0 +1,226 @@
+.section {
+  position: relative;
+  padding: 120px 24px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 200, 120, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #FFF8F0 0%, #FFFBF5 50%, #FFF8F0 100%);
+  overflow: hidden;
+}
+
+/*  subtle 纹理 */
+.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 200, 100, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255, 150, 150, 0.02) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.container {
+  position: relative;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+/* ====== 头部 ====== */
+.header {
+  text-align: center;
+  margin-bottom: 72px;
+  opacity: 1;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.headerVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overline {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #c9a227;
+  margin-bottom: 16px;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  letter-spacing: 0.01em;
+}
+
+.subtitle {
+  margin: 0 auto;
+  font-size: 17px;
+  color: #8a7a6a;
+  max-width: 440px;
+  line-height: 1.6;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+/* ====== 特性卡片网格 ====== */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.card {
+  position: relative;
+  padding: 40px 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(200, 170, 130, 0.12);
+  backdrop-filter: blur(12px);
+  text-align: center;
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
+  transform: translateY(30px);
+  overflow: hidden;
+}
+
+.cardVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(200, 170, 130, 0.25);
+  box-shadow:
+    0 16px 48px rgba(150, 100, 50, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.iconWrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  font-size: 28px;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover .iconWrapper {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.iconGlow {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+  filter: blur(20px);
+  transform: scale(1.4);
+}
+
+.card:hover .iconGlow {
+  opacity: 0.25;
+}
+
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #8a7a6a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.cardLine {
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  opacity: 1;
+  transform: scaleX(0.5);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover .cardLine {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* 响应式 */
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding: 80px 20px;
+  }
+
+  .header {
+    margin-bottom: 48px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    padding: 32px 24px;
+    border-radius: 24px;
+    text-align: left;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .iconWrapper {
+    margin: 0;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    border-radius: 16px;
+  }
+
+  .cardTitle {
+    margin-bottom: 6px;
+  }
+
+  .cardLine {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* 减少动态效果 */
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

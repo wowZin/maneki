@@ -100,10 +100,41 @@
 
 ---
 
-### 7. 安全与防刷策略
+### 7. 密码安全策略
 
-**Decision**: 三层防护
+**Decision**: `bcrypt` 哈希存储密码，默认 cost 10。
+
+**Rationale**:
+- 账号密码登录和注册需要安全的密码存储。
+- bcrypt 是 Go 标准库 `golang.org/x/crypto/bcrypt` 的一部分，成熟可靠。
+- 注册和重置密码时需校验复杂度：至少 8 位，包含字母和数字。
+
+**Alternatives considered**:
+- Argon2: Rejected — bcrypt 对当前威胁模型足够，且更简单。
+- Plain text / MD5: Rejected — 严重安全风险。
+
+### 8. CORS 多域名支持
+
+**Decision**: 后端 CORS 中间件支持 `*.maneki.cn` 通配符子域名，并兼容带端口的 origin。
+
+**Rationale**:
+- 开发环境使用 `dev.maneki.cn:5173`、`app.maneki.cn:5173` 等自定义域名。
+- CORS 中间件已更新为提取 origin 中的纯域名部分进行通配符匹配（去掉协议和端口）。
+
+### 9. "记住我"功能
+
+**Decision**: 前端提供"记住我"复选框，勾选时 refresh token 有效期 30 天，不勾选时 session 在关闭浏览器后失效。
+
+**Rationale**:
+- 通过控制 refresh token 的过期时间实现。
+- 前端将 token 存入 `localStorage`（记住我）或 `sessionStorage`（不记住）。
+- 当前实现统一使用 `localStorage`，需扩展支持两种存储策略。
+
+### 10. 安全与防刷策略
+
+**Decision**: 四层防护
 1. **号码认证层面**：阿里云 SDK 自带运营商网关安全校验，难以伪造
 2. **短信频率限制**：60 秒防重发 + IP 限流（仅 fallback 到短信时生效）
 3. **接口通用防护**：后端对 `/auth/phone/*` 接口启用现有 rate limit 中间件
+4. **密码登录防护**：账号密码登录接口启用 rate limit，防止暴力破解
 

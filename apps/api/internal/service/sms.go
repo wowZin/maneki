@@ -22,9 +22,13 @@ type SMSService interface {
 	GetAuthToken(ctx context.Context) (*AuthTokenResult, error)
 	VerifyPhoneWithToken(ctx context.Context, phone, spToken string) error
 
-	// 短信验证码
+	// 短信验证码（登录）
 	SendVerifyCode(ctx context.Context, phone string) (string, error)
 	ValidateVerifyCode(ctx context.Context, phone, code string) (bool, error)
+
+	// 短信验证码（忘记密码）
+	SendForgotPasswordCode(ctx context.Context, phone string) (string, error)
+	ValidateForgotPasswordCode(ctx context.Context, phone, code string) (bool, error)
 
 	// 通用
 	IsValidPhone(phone string) bool
@@ -242,6 +246,103 @@ func (s *smsServiceImpl) ValidateVerifyCode(ctx context.Context, phone, code str
 	}
 
 	codeKey := fmt.Sprintf("sms:login:%s", phone)
+	storedCode, err := s.redis.Get(ctx, codeKey).Result()
+	if err == redis.Nil {
+		return false, fmt.Errorf("code expired or not requested")
+	}
+	if err != nil {
+		return false, fmt.Errorf("get code failed: %w", err)
+	}
+
+	if storedCode != code {
+		return false, nil
+	}
+
+	// 验证成功后删除验证码
+	_ = s.redis.Del(ctx, codeKey)
+
+	return true, nil
+}
+
+// SendForgotPasswordCode 发送忘记密码验证码
+func (s *smsServiceImpl) SendForgotPasswordCode(ctx context.Context, phone string) (string, error) {
+	if !s.IsValidPhone(phone) {
+		return "", fmt.Errorf("invalid phone number")
+	}
+
+	// 检查频率限制
+	limitKey := fmt.Sprintf("sms:limit:forgot:%s", phone)
+	exists, err := s.redis.Exists(ctx, limitKey).Result()
+	if err != nil {
+		return "", fmt.Errorf("check rate limit failed: %w", err)
+	}
+	if exists > 0 {
+		return "", fmt.Errorf("rate limited: please wait before resending")
+	}
+
+	var code string
+
+	if s.cfg.Mode == "mock" {
+		code = "123456"
+		fmt.Printf("[MOCK SMS] Forgot Password Phone: %s, Code: %s\n", phone, code)
+	} else {
+		if s.pnsClient == nil {
+			return "", fmt.Errorf("pns client not initialized")
+		}
+
+		templateCode := s.cfg.TemplateCode
+		if templateCode == "" {
+			templateCode = "100001"
+		}
+
+		resp, err := s.pnsClient.SendSmsVerifyCode(&dypnsapi.SendSmsVerifyCodeRequest{
+			PhoneNumber:      tea.String(phone),
+			SignName:         tea.String(s.cfg.SignName),
+			TemplateCode:     tea.String(templateCode),
+			CodeLength:       tea.Int64(6),
+			ValidTime:        tea.Int64(300),
+			ReturnVerifyCode: tea.Bool(true),
+		})
+		if err != nil {
+			return "", fmt.Errorf("send sms failed: %w", err)
+		}
+
+		if resp.Body == nil || resp.Body.Code == nil || tea.StringValue(resp.Body.Code) != "OK" {
+			msg := "unknown error"
+			if resp.Body != nil && resp.Body.Message != nil {
+				msg = tea.StringValue(resp.Body.Message)
+			}
+			return "", fmt.Errorf("send sms failed: %s", msg)
+		}
+
+		if resp.Body.Model != nil && resp.Body.Model.VerifyCode != nil {
+			code = tea.StringValue(resp.Body.Model.VerifyCode)
+		} else {
+			return "", fmt.Errorf("sms provider did not return verify code")
+		}
+	}
+
+	// 存储验证码到Redis，5分钟过期，使用独立命名空间
+	codeKey := fmt.Sprintf("sms:forgot:%s", phone)
+	if err := s.redis.Set(ctx, codeKey, code, 5*time.Minute).Err(); err != nil {
+		return "", fmt.Errorf("store code failed: %w", err)
+	}
+
+	// 设置发送频率限制，60秒
+	if err := s.redis.Set(ctx, limitKey, "1", 60*time.Second).Err(); err != nil {
+		return "", fmt.Errorf("set rate limit failed: %w", err)
+	}
+
+	return code, nil
+}
+
+// ValidateForgotPasswordCode 校验忘记密码验证码
+func (s *smsServiceImpl) ValidateForgotPasswordCode(ctx context.Context, phone, code string) (bool, error) {
+	if !s.IsValidPhone(phone) {
+		return false, fmt.Errorf("invalid phone number")
+	}
+
+	codeKey := fmt.Sprintf("sms:forgot:%s", phone)
 	storedCode, err := s.redis.Get(ctx, codeKey).Result()
 	if err == redis.Nil {
 		return false, fmt.Errorf("code expired or not requested")

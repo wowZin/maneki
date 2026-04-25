@@ -48,6 +48,7 @@ const Login: React.FC = () => {
   const { login, isAuthenticated, setLoading, setError, error, clearError } = useAuthStore()
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState('password')
+  const [rememberMe, setRememberMe] = useState(true)
 
   // 微信认证相关
   const {
@@ -117,17 +118,21 @@ const Login: React.FC = () => {
       })
 
       const token = authResponse.access_token
-      useAuthStore.setState({ token })
-
-      const user = await authApi.getCurrentUser()
-      login(token, user)
+      const user = authResponse.user
+      login(token, user, rememberMe)
       message.success('登录成功！')
       navigate('/')
     } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || '登录失败，请检查用户名和密码'
+      let errorMsg: string
+      if (!err.response) {
+        errorMsg = '网络连接失败，请检查网络或稍后重试'
+      } else if (err.response.status === 429) {
+        errorMsg = err.response.data?.error || '操作过于频繁，请稍后再试'
+      } else {
+        errorMsg = err.response.data?.error || '登录失败，请检查用户名和密码'
+      }
       setError(errorMsg)
       message.error(errorMsg)
-      useAuthStore.setState({ token: null })
     } finally {
       setSubmitting(false)
       setLoading(false)
@@ -208,17 +213,14 @@ const Login: React.FC = () => {
 
       // 5. 保存登录状态
       const token = authResponse.access_token
-      useAuthStore.setState({ token })
-
       const user = authResponse.user
-      login(token, user)
+      login(token, user, rememberMe)
       message.success('登录成功！')
       navigate('/')
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || '登录失败，请稍后重试'
       setError(errorMsg)
       message.error(errorMsg)
-      useAuthStore.setState({ token: null })
     } finally {
       setPhoneSubmitting(false)
     }
@@ -236,10 +238,8 @@ const Login: React.FC = () => {
       })
 
       const token = authResponse.access_token
-      useAuthStore.setState({ token })
-
       const user = authResponse.user
-      login(token, user)
+      login(token, user, rememberMe)
       message.success('登录成功！')
       navigate('/')
     } catch (err: any) {
@@ -255,7 +255,6 @@ const Login: React.FC = () => {
 
       setError(displayMsg)
       message.error(displayMsg)
-      useAuthStore.setState({ token: null })
     } finally {
       setPhoneSubmitting(false)
     }
@@ -354,26 +353,34 @@ const Login: React.FC = () => {
 
       {pnsAvailable === true ? (
         // 号码认证模式：一键验证
-        <Form.Item style={{ marginBottom: 16 }}>
-          <Button
-            type="primary"
-            size="large"
-            block
-            loading={phoneSubmitting || pnsLoading}
-            onClick={handlePhoneVerifyLogin}
-            style={{
-              height: 52,
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 600,
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              border: 'none',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
-            }}
-          >
-            一键验证
-          </Button>
-        </Form.Item>
+        <>
+          <Form.Item style={{ marginBottom: 8 }}>
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={phoneSubmitting || pnsLoading}
+              onClick={handlePhoneVerifyLogin}
+              style={{
+                height: 52,
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+              }}
+            >
+              一键验证
+            </Button>
+          </Form.Item>
+
+          <div style={{ textAlign: 'right', marginBottom: 16 }}>
+            <Link to="/forgot-password" style={{ color: '#d35400', fontSize: 14, fontWeight: 500 }}>
+              忘记密码？
+            </Link>
+          </div>
+        </>
       ) : (
         // 短信验证码模式
         <>
@@ -408,7 +415,7 @@ const Login: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 16 }}>
+          <Form.Item style={{ marginBottom: 8 }}>
             <Button
               type="primary"
               htmlType="submit"
@@ -420,14 +427,20 @@ const Login: React.FC = () => {
                 borderRadius: 12,
                 fontSize: 16,
                 fontWeight: 600,
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: 'linear-gradient(135deg, #f39c12, #e67e22)',
                 border: 'none',
-                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+                boxShadow: '0 4px 14px rgba(230, 126, 34, 0.35)'
               }}
             >
               登录
             </Button>
           </Form.Item>
+
+          <div style={{ textAlign: 'right', marginBottom: 16 }}>
+            <Link to="/forgot-password" style={{ color: '#d35400', fontSize: 14, fontWeight: 500 }}>
+              忘记密码？
+            </Link>
+          </div>
         </>
       )}
 
@@ -558,6 +571,23 @@ const Login: React.FC = () => {
                       />
                     </Form.Item>
 
+                    <Form.Item style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer', userSelect: 'none' }}>
+                          <input
+                            type="checkbox"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            style={{ marginRight: 6 }}
+                          />
+                          记住我
+                        </label>
+                        <Link to="/forgot-password" style={{ color: '#d35400', fontSize: 14, fontWeight: 500 }}>
+                          忘记密码？
+                        </Link>
+                      </div>
+                    </Form.Item>
+
                     <Form.Item style={{ marginBottom: 16 }}>
                       <Button
                         type="primary"
@@ -570,9 +600,9 @@ const Login: React.FC = () => {
                           borderRadius: 12,
                           fontSize: 16,
                           fontWeight: 600,
-                          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          background: 'linear-gradient(135deg, #f39c12, #e67e22)',
                           border: 'none',
-                          boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+                          boxShadow: '0 4px 14px rgba(230, 126, 34, 0.35)'
                         }}
                       >
                         登录
@@ -585,7 +615,7 @@ const Login: React.FC = () => {
                   <div className="tech-divider" />
                   <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
                     <Text style={{ color: 'var(--text-secondary)' }}>
-                      还没有账号？ <Link to="/register" style={{ color: '#3b82f6', fontWeight: 600 }}>立即注册</Link>
+                      还没有账号？ <Link to="/register" style={{ color: '#d35400', fontWeight: 600 }}>立即注册</Link>
                     </Text>
                     <Text style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
                       <Link to="/pricing" style={{ color: 'var(--text-tertiary)' }}>查看会员权益 →</Link>

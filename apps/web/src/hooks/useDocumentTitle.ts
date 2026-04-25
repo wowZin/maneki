@@ -1,11 +1,15 @@
+/**
+ * 设置文档标题 Hook
+ */
+
 import { useEffect } from 'react'
 
-export function useDocumentTitle(title: string) {
+export const useDocumentTitle = (title: string) => {
   useEffect(() => {
-    const previous = document.title
+    const original = document.title
     document.title = title
     return () => {
-      document.title = previous
+      document.title = original
     }
   }, [title])
 }

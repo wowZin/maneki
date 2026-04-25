@@ -17,6 +17,7 @@ import {
   UserOutlined,
   LockOutlined,
   MailOutlined,
+  MobileOutlined,
   StockOutlined,
   CheckCircleOutlined,
   ArrowLeftOutlined,
@@ -29,6 +30,7 @@ const { Text } = Typography
 interface RegisterFormData {
   username: string
   email: string
+  phone?: string
   password: string
   confirmPassword: string
   full_name?: string
@@ -37,7 +39,7 @@ interface RegisterFormData {
 const Register: React.FC = () => {
   const navigate = useNavigate()
   const [form] = Form.useForm()
-  const { isAuthenticated, setError, error, clearError } = useAuthStore()
+  const { login, isAuthenticated, setError, error, clearError } = useAuthStore()
   const [submitting, setSubmitting] = useState(false)
   const [registered, setRegistered] = useState(false)
 
@@ -53,17 +55,34 @@ const Register: React.FC = () => {
     clearError()
 
     try {
-      await authApi.register({
+      const response = await authApi.register({
         username: values.username,
         email: values.email,
         password: values.password,
+        phone: values.phone,
         full_name: values.full_name,
       })
 
       message.success('注册成功！')
-      setRegistered(true)
+
+      // 自动登录
+      const token = response.access_token
+      const user = response.user
+      if (token && user) {
+        login(token, user)
+        navigate('/')
+      } else {
+        setRegistered(true)
+      }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || '注册失败，请检查输入信息'
+      let errorMsg: string
+      if (!err.response) {
+        errorMsg = '网络连接失败，请检查网络或稍后重试'
+      } else if (err.response.status === 409) {
+        errorMsg = err.response.data?.error || '该账号已被注册'
+      } else {
+        errorMsg = err.response.data?.error || err.response.data?.detail || '注册失败，请检查输入信息'
+      }
       setError(errorMsg)
       message.error(errorMsg)
     } finally {
@@ -109,9 +128,9 @@ const Register: React.FC = () => {
               fontSize: 16,
               fontWeight: 600,
               padding: '0 48px',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              background: 'linear-gradient(135deg, #f39c12, #e67e22)',
               border: 'none',
-              boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+              boxShadow: '0 4px 14px rgba(230, 126, 34, 0.35)'
             }}
           >
             去登录
@@ -217,6 +236,26 @@ const Register: React.FC = () => {
           </Form.Item>
 
           <Form.Item
+            name="phone"
+            rules={[
+              { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' },
+            ]}
+          >
+            <Input
+              prefix={<MobileOutlined style={{ color: 'var(--text-tertiary)' }} />}
+              placeholder="手机号（可选）"
+              size="large"
+              maxLength={11}
+              style={{
+                height: 52,
+                borderRadius: 12,
+                border: '1px solid var(--border-medium)',
+                background: 'rgba(255, 255, 255, 0.8)'
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item
             name="full_name"
           >
             <Input
@@ -236,7 +275,19 @@ const Register: React.FC = () => {
             name="password"
             rules={[
               { required: true, message: '请输入密码' },
-              { min: 6, message: '密码至少6位' },
+              { min: 8, message: '密码至少8位' },
+              {
+                validator(_, value) {
+                  if (!value) return Promise.resolve()
+                  if (!/[a-zA-Z]/.test(value)) {
+                    return Promise.reject(new Error('密码必须包含字母'))
+                  }
+                  if (!/[0-9]/.test(value)) {
+                    return Promise.reject(new Error('密码必须包含数字'))
+                  }
+                  return Promise.resolve()
+                },
+              },
             ]}
           >
             <Input.Password
@@ -292,9 +343,9 @@ const Register: React.FC = () => {
                 borderRadius: 12,
                 fontSize: 16,
                 fontWeight: 600,
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: 'linear-gradient(135deg, #f39c12, #e67e22)',
                 border: 'none',
-                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
+                boxShadow: '0 4px 14px rgba(230, 126, 34, 0.35)'
               }}
             >
               创建账号
@@ -306,7 +357,7 @@ const Register: React.FC = () => {
 
         <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
           <Text style={{ color: 'var(--text-secondary)' }}>
-            已有账号？ <Link to="/login" style={{ color: '#3b82f6', fontWeight: 600 }}>立即登录</Link>
+            已有账号？ <Link to="/login" style={{ color: '#d35400', fontWeight: 600 }}>立即登录</Link>
           </Text>
         </Space>
       </div>

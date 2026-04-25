@@ -1,5 +1,6 @@
 /**
- * 可复用的定价卡片组件
+ * PricingCard - 可复用定价卡片
+ * 统一高度、精修间距、清晰层级
  */
 
 import React from 'react'
@@ -7,22 +8,10 @@ import { CheckCircleOutlined, StarOutlined } from '@ant-design/icons'
 import { MembershipPlan } from '../../services/pricing'
 import styles from './PricingCard.module.css'
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  star: <StarOutlined />,
-}
-
-const COLOR_MAP: Record<string, string> = {
-  blue: '#3b82f6',
-  gold: '#f59e0b',
-  purple: '#8b5cf6',
-  cyan: '#06b6d4',
-}
-
-const GRADIENT_MAP: Record<string, string> = {
-  blue: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
-  gold: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
-  purple: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
-  cyan: 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
+const TIER_STYLES: Record<string, { color: string; bg: string }> = {
+  basic: { color: '#475569', bg: 'rgba(71, 85, 105, 0.08)' },
+  vip: { color: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },
+  svip: { color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.08)' },
 }
 
 interface PricingCardProps {
@@ -32,6 +21,9 @@ interface PricingCardProps {
   onCTAClick?: () => void
   unit?: string
   price?: number
+  originalPrice?: number
+  saveLabel?: string
+  discountLabel?: string
   loading?: boolean
 }
 
@@ -42,14 +34,17 @@ const PricingCard: React.FC<PricingCardProps> = ({
   onCTAClick,
   unit = '/月',
   price,
+  originalPrice,
+  saveLabel,
+  discountLabel,
   loading = false,
 }) => {
-  const color = COLOR_MAP[plan.color] || '#3b82f6'
-  const gradient = GRADIENT_MAP[plan.color] || GRADIENT_MAP.blue
+  const tierStyle = TIER_STYLES[plan.tier] || TIER_STYLES.basic
   const isPopular = plan.is_popular
   const isFree = plan.tier === 'basic'
-
-  const displayPrice = price !== undefined ? price : (isFree ? 0 : 99)
+  const displayPrice = price !== undefined ? price : isFree ? 0 : 99
+  const highlights = plan.highlights || []
+  const features = plan.features || []
 
   return (
     <div
@@ -58,16 +53,18 @@ const PricingCard: React.FC<PricingCardProps> = ({
         isPopular ? styles.popular : '',
         isCurrent ? styles.current : '',
       ].join(' ')}
+      style={
+        {
+          '--tier-color': tierStyle.color,
+          '--tier-bg': tierStyle.bg,
+        } as React.CSSProperties
+      }
     >
       {plan.badge && <div className={styles.badge}>{plan.badge}</div>}
 
       <div className={styles.header}>
-        <div className={styles.icon} style={{ background: gradient }}>
-          {ICON_MAP[plan.icon] || <StarOutlined />}
-        </div>
-        <div className={styles.name} style={{ color }}>
-          {plan.name}
-        </div>
+        <div className={styles.icon}>{ICON_MAP[plan.icon] || <StarOutlined />}</div>
+        <div className={styles.name}>{plan.name}</div>
         <div className={styles.desc}>{plan.description}</div>
       </div>
 
@@ -75,28 +72,40 @@ const PricingCard: React.FC<PricingCardProps> = ({
         {isFree ? (
           <span className={styles.freePrice}>免费</span>
         ) : (
-          <div>
-            <span className={styles.currency}>¥</span>
-            <span className={styles.amount}>{displayPrice}</span>
-            <span className={styles.period}>{unit}</span>
+          <div className={styles.priceWrap}>
+            <div className={styles.priceMain}>
+              <span className={styles.currency}>¥</span>
+              <span className={styles.amount}>{displayPrice}</span>
+              <span className={styles.period}>{unit}</span>
+            </div>
+            <div className={styles.priceMeta}>
+              {originalPrice !== undefined && originalPrice > displayPrice && (
+                <span className={styles.originalPrice}>
+                  ¥{originalPrice}{unit}
+                </span>
+              )}
+              {discountLabel && <span className={styles.discountTag}>{discountLabel}</span>}
+              {saveLabel && <span className={styles.saveTag}>{saveLabel}</span>}
+            </div>
           </div>
         )}
       </div>
 
-      {plan.highlights.length > 0 && !isFree && (
-        <div className={styles.highlights}>
-          {plan.highlights.map((h, idx) => (
-            <span key={idx} className={styles.highlightTag} style={{ color, background: `${color}15` }}>
+      <div className={styles.highlights}>
+        {highlights.length > 0 &&
+          highlights.map((h, idx) => (
+            <span key={idx} className={styles.highlightTag}>
               {h}
             </span>
           ))}
-        </div>
-      )}
+      </div>
+
+      <div className={styles.divider} />
 
       <div className={styles.features}>
-        {plan.features.map((f, idx) => (
+        {features.map((f, idx) => (
           <div key={idx} className={styles.feature}>
-            <CheckCircleOutlined className={styles.featureIcon} style={{ color }} />
+            <CheckCircleOutlined className={styles.featureIcon} />
             <span>{f}</span>
           </div>
         ))}
@@ -110,12 +119,13 @@ const PricingCard: React.FC<PricingCardProps> = ({
         ].join(' ')}
         onClick={onCTAClick}
         disabled={isCurrent || loading}
-        style={isPopular && !isCurrent ? { background: gradient } : {}}
         aria-label={ctaText || (isFree ? '免费使用' : `订阅${plan.name}`)}
       >
         {loading ? (
           <span className={styles.loadingDots}>
-            <span /><span /><span />
+            <span />
+            <span />
+            <span />
           </span>
         ) : (
           ctaText || (isFree ? '免费使用' : `订阅${plan.name}`)
@@ -123,6 +133,12 @@ const PricingCard: React.FC<PricingCardProps> = ({
       </button>
     </div>
   )
+}
+
+const ICON_MAP: Record<string, React.ReactNode> = {
+  star: <StarOutlined />,
+  crown: <StarOutlined />,
+  thunderbolt: <StarOutlined />,
 }
 
 export default PricingCard

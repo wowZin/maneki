@@ -1,0 +1,204 @@
+.settingsPage {
+  position: relative;
+  z-index: 1;
+}
+
+.pageHeader {
+  margin-bottom: 32px;
+}
+
+.pageTitle {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  letter-spacing: 0.01em;
+}
+
+.pageSubtitle {
+  margin: 0;
+  font-size: 15px;
+  color: #8a7a6a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* ====== 通用卡片样式 ====== */
+.settingsCard {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(200, 170, 130, 0.15);
+  box-shadow:
+    0 4px 20px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  margin-bottom: 20px;
+}
+
+.settingsCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(200, 170, 130, 0.12);
+  padding: 16px 24px;
+}
+
+.settingsCard :global(.ant-card-body) {
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.cardIcon {
+  font-size: 20px;
+  color: #c9a227;
+}
+
+/* ====== 表单样式 ====== */
+.settingsForm :global(.ant-form-item-label > label) {
+  color: #5a4a3a;
+  font-weight: 500;
+}
+
+.settingsForm :global(.ant-input) {
+  border-radius: 12px;
+  border: 1px solid rgba(200, 170, 130, 0.25);
+  background: rgba(255, 255, 255, 0.8);
+  height: 44px;
+}
+
+.settingsForm :global(.ant-input:hover) {
+  border-color: rgba(230, 126, 34, 0.4);
+}
+
+.settingsForm :global(.ant-input:focus) {
+  border-color: #e67e22;
+  box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.1);
+}
+
+.saveBtn {
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 28px;
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(230, 126, 34, 0.3);
+}
+
+.saveBtn:hover {
+  background: linear-gradient(135deg, #e67e22, #d35400) !important;
+}
+
+/* ====== Switch 列表 ====== */
+.switchList {
+  display: flex;
+  flex-direction: column;
+}
+
+.switchItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.switchLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3a2a1a;
+  margin-bottom: 4px;
+}
+
+.switchDesc {
+  font-size: 13px;
+  color: #a09080;
+}
+
+.divider {
+  margin: 12px 0;
+  background: rgba(200, 170, 130, 0.12);
+}
+
+/* ====== 危险区域卡片 ====== */
+.dangerCard {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(231, 76, 60, 0.15);
+  box-shadow:
+    0 4px 20px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.dangerCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(231, 76, 60, 0.1);
+}
+
+.dangerIcon {
+  font-size: 20px;
+  color: #e74c3c;
+}
+
+.dangerBody {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.dangerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3a2a1a;
+}
+
+.dangerDesc {
+  font-size: 13px;
+  color: #a09080;
+  margin-top: 4px;
+}
+
+.logoutBtn {
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid rgba(200, 170, 130, 0.3);
+  color: #7a6a5a;
+  font-weight: 500;
+}
+
+.logoutBtn:hover {
+  border-color: #e67e22;
+  color: #e67e22;
+}
+
+.deleteBtn {
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 20px;
+  font-weight: 500;
+}
+
+/* 响应式 */
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsCard :global(.ant-card-body),
+  .dangerCard :global(.ant-card-body) {
+    padding: 20px;
+  }
+}

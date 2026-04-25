@@ -42,6 +42,17 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 	if origin == "" {
 		return true
 	}
+	// 提取 host（去掉协议和端口）
+	host := origin
+	if strings.HasPrefix(host, "http://") {
+		host = host[7:]
+	} else if strings.HasPrefix(host, "https://") {
+		host = host[8:]
+	}
+	if idx := strings.Index(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+
 	for _, a := range allowed {
 		if a == "*" || strings.EqualFold(a, origin) {
 			return true
@@ -49,14 +60,6 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 		// 支持通配符子域名（兼容带端口的 origin，如 http://dev.maneki.cn:5173）
 		if strings.HasPrefix(a, "*.") {
 			suffix := a[1:] // .example.com
-			// 从 origin 中提取纯域名（去掉协议和端口）
-			host := origin
-			if idx := strings.Index(host, "://"); idx != -1 {
-				host = host[idx+3:]
-			}
-			if idx := strings.Index(host, ":"); idx != -1 {
-				host = host[:idx]
-			}
 			if strings.HasSuffix(host, suffix) {
 				return true
 			}

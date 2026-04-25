@@ -1,7 +1,7 @@
 # Tasks: 用户手机号登录（号码认证 + 短信验证码）
 
 **Input**: Design documents from `/specs/007-user-sms-login/`
-**Prerequisites**: plan.md, spec.md, data-model.md, contracts/auth-phone.md, research.md, quickstart.md
+**Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, research.md, quickstart.md
 
 **Tests**: Not explicitly requested — test tasks omitted.
 
@@ -127,9 +127,9 @@
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 6: Polish & Cross-Cutting Concerns (Original)
 
-**Purpose**: Final validation, cleanup, and documentation
+**Purpose**: Final validation, cleanup, and documentation for phone login feature
 
 - [x] T019 [P] Run through `quickstart.md` validation checklist locally (Mock mode)
 - [x] T020 [P] Add `board_accuracy` and other VIP fields to phone-auto-registered users default values (0, nil) in `apps/api/internal/handler/auth.go`
@@ -139,87 +139,181 @@
 
 ---
 
+## Phase 7: Foundational Additions (Blocking for New User Stories)
+
+**Purpose**: Backend prerequisites for forgot password, registration polish, and "remember me"
+
+**⚠️ CRITICAL**: Complete these before starting US4–US7
+
+- [ ] T024 [P] Add username uniqueness check in `apps/api/internal/handler/auth.go` Register handler — reject duplicate username before Create
+- [ ] T025 [P] Add backend forgot-password SMS methods to `apps/api/internal/service/sms.go`:
+  - `SendForgotPasswordCode(ctx, phone)` using Redis key `sms:forgot:{phone}` TTL 300s
+  - `ValidateForgotPasswordCode(ctx, phone, code)` with separate key namespace from login codes
+- [ ] T026 [P] Strengthen backend password validation in `apps/api/internal/handler/auth.go`:
+  - RegisterRequest password: min 8 chars, must contain both letter and number
+  - Reject passwords that are all letters or all numbers
+
+**Checkpoint**: Backend supports username uniqueness, forgot-password SMS isolation, and stronger password policy.
+
+---
+
+## Phase 8: User Story 4 — 登录页完善（账号密码登录体验增强）(Priority: P1)
+
+**Goal**: Password login tab provides "remember me" option and "forgot password" navigation. Phone login tab also provides "forgot password" path.
+
+**Independent Test**: Open `/login` on password tab. See "记住我" checkbox and "忘记密码？" link. Check "记住我", login, close browser, reopen → still logged in. Uncheck, login, close browser, reopen → needs re-login. Click "忘记密码？" → navigates to `/forgot-password`.
+
+### Implementation for User Story 4
+
+- [ ] T027 [US4] Add "记住我" checkbox to password login form in `apps/web/src/pages/Login/index.tsx`
+- [ ] T028 [US4] Add "忘记密码？" link below password login form in `apps/web/src/pages/Login/index.tsx`
+- [ ] T029 [US4] Add "忘记密码？" link below phone login form in `apps/web/src/pages/Login/index.tsx`
+- [ ] T030 [P] [US4] Add forgot password API interfaces to `apps/web/src/services/api.ts`:
+  - `sendForgotPasswordCode(data)` → `POST /auth/forgot-password/send-code`
+  - `resetPassword(data)` → `POST /auth/forgot-password/reset`
+- [ ] T031 [P] [US4] Implement backend forgot password handlers in `apps/api/internal/handler/auth.go`:
+  - `POST /auth/forgot-password/send-code` — validate phone exists, send code via `smsService.SendForgotPasswordCode`, apply rate limits
+  - `POST /auth/forgot-password/reset` — validate code via `smsService.ValidateForgotPasswordCode`, validate new password complexity, bcrypt hash, update user password, generate JWT, auto-login response
+- [ ] T032 [US4] Register forgot password routes in `apps/api/cmd/main.go`
+
+**Checkpoint**: Login page has remember-me and forgot-password navigation. Backend forgot-password flow is functional.
+
+---
+
+## Phase 9: User Story 5 — 注册页完善（支持手机号与强密码策略）(Priority: P2)
+
+**Goal**: Registration form collects optional phone number and enforces strong password policy. After successful registration, user is automatically logged in.
+
+**Independent Test**: Open `/register`. Fill username, email, phone, password (8+ chars with letters and numbers). Submit → registration succeeds and user is immediately redirected to dashboard (auto-login). Try weak password → rejected with clear message. Try duplicate username → rejected.
+
+### Implementation for User Story 5
+
+- [ ] T033 [P] [US5] Add optional phone field to Register form in `apps/web/src/pages/Register/index.tsx`:
+  - Input with `MobileOutlined` prefix
+  - Pattern validation `^1[3-9]\d{9}$`
+  - Placeholder: "手机号（可选）"
+- [ ] T034 [P] [US5] Update `RegisterData` interface and `authApi.register` call in `apps/web/src/services/api.ts` to include optional `phone`
+- [ ] T035 [US5] Strengthen frontend password validation in `apps/web/src/pages/Register/index.tsx`:
+  - Min 8 characters
+  - Must contain at least one letter and one number
+  - Update confirm password validator to match
+- [ ] T036 [US5] Auto-login after successful registration in `apps/web/src/pages/Register/index.tsx`:
+  - On register success, use returned token + user from backend to call `login(token, user)` from auth store
+  - Redirect to `/` instead of showing success message + "去登录" button
+
+**Checkpoint**: Registration collects phone, enforces strong passwords, and auto-logs in the user.
+
+---
+
+## Phase 10: User Story 6 — 忘记密码页面 (Priority: P2)
+
+**Goal**: Users can reset their password via SMS verification on a dedicated forgot-password page.
+
+**Independent Test**: Navigate to `/forgot-password`. Enter registered phone → request code → enter code + new password (8+ chars with letters and numbers) → submit → password reset succeeds, auto-login, redirect to home. Enter wrong code → error. Enter weak password → rejected.
+
+### Implementation for User Story 6
+
+- [ ] T037 [P] [US6] Create `apps/web/src/pages/ForgotPassword/index.tsx` page component:
+  - Step 1: Phone input + "获取验证码" button with countdown
+  - Step 2: Code input + new password + confirm password
+  - Step 3: Submit → call `resetPassword` API → auto-login on success
+  - Match existing auth page styling (auth-container, auth-card, tech gradients)
+  - Back to login link
+- [ ] T038 [US6] Add `/forgot-password` route in `apps/web/src/App.tsx`
+- [ ] T039 [US6] Integrate SMS countdown and error handling in ForgotPassword page (reuse countdown logic pattern from Login page)
+
+**Checkpoint**: Forgot password page is fully functional: send code, validate, reset password, auto-login.
+
+---
+
+## Phase 11: User Story 7 — "记住我"功能 (Priority: P2)
+
+**Goal**: Users can choose whether their login persists across browser sessions.
+
+**Independent Test**: Login with "记住我" checked → token stored in localStorage → close and reopen browser → still logged in. Login with "记住我" unchecked → token stored in sessionStorage → close and reopen browser → redirected to login.
+
+### Implementation for User Story 7
+
+- [ ] T040 [US7] Extend `apps/web/src/stores/auth.ts` to support dual storage strategy:
+  - Create `createAuthStore(storage: 'local' | 'session')` factory
+  - Default export uses localStorage (backward compatible)
+  - Export a sessionStorage variant for non-remember-me logins
+- [ ] T041 [US7] Update Login page `handleSubmit` in `apps/web/src/pages/Login/index.tsx`:
+  - Read "remember me" checkbox value
+  - If checked: use default localStorage store (existing behavior)
+  - If unchecked: use sessionStorage store instance
+  - Pass storage choice through to `login()` call
+- [ ] T042 [US7] Update phone login handlers (`handlePhoneVerifyLogin`, `handlePhoneCodeLogin`) in `apps/web/src/pages/Login/index.tsx` to respect "remember me" setting
+
+**Checkpoint**: "Remember me" checkbox controls token persistence strategy correctly for all login methods.
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns (Final)
+
+**Purpose**: Final validation and fixes for all auth flows
+
+- [ ] T043 [P] Fix `apps/web/src/services/api.ts` baseURL fallback from `http://localhost:8000` to empty string `''` to ensure Vite proxy is always used
+- [ ] T044 [P] Run end-to-end validation of all auth flows per `quickstart.md` checklist:
+  - Account password login (correct, wrong password, non-existent user)
+  - Phone login (PNS + SMS fallback)
+  - Registration (success, duplicate username, weak password)
+  - Forgot password (send code, reset, auto-login)
+  - Remember me (checked vs unchecked persistence)
+  - Logout clears state
+- [ ] T045 Review and align all Chinese error messages between frontend and backend for consistency
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories
-- **User Stories (Phase 3–5)**: All depend on Foundational phase completion
-  - US1 (P1) must complete before US2 and US3 polish (but US2/US3 can start in parallel with US1 if components don't conflict)
-  - US2 builds on US1's SMS fallback UI
-  - US3 is mostly verification of existing shared auth mechanism
-- **Polish (Phase 6)**: Depends on all user stories being functional
+- **Setup (Phase 1)**: ✅ Complete
+- **Foundational (Phase 2)**: ✅ Complete
+- **User Stories 1–3 (Phase 3–5)**: ✅ Complete
+- **Foundational Additions (Phase 7)**: Must complete before US4–US7
+- **User Stories 4–7 (Phase 8–11)**: All depend on Phase 7
+  - US4 (login polish + forgot password backend) must complete before US6 (forgot password page)
+  - US5 (registration) can run in parallel with US4/US6/US7
+- **Polish (Phase 12)**: Depends on all user stories being functional
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Can start after Foundational (Phase 2). No dependencies on other stories. This is the MVP.
-- **User Story 2 (P2)**: Can start after US1 has basic SMS fallback working. Enhances the SMS fallback UX.
-- **User Story 3 (P2)**: Can start in parallel with US1/US2. Primarily verification of shared auth store and logout flow.
-
-### Within Each User Story
-
-- Backend handler methods (T008, T009) and frontend API (T011) can run in parallel
-- Frontend Login page modifications (T012) depend on T011 (API methods available)
-- Route registration (T010) depends on T008/T009 (handlers implemented)
+- **User Story 4 (P1)**: Login page enhancements + forgot password backend. Must complete before US6.
+- **User Story 5 (P2)**: Registration enhancements. Can run in parallel with US4/US6/US7.
+- **User Story 6 (P2)**: Forgot password page. Depends on US4 backend handlers.
+- **User Story 7 (P2)**: Remember me. Can run in parallel with US5/US6 after US4 login checkbox is added.
 
 ### Parallel Opportunities
 
-- All Setup tasks (T001–T003) can run in parallel
-- All Foundational tasks (T004–T007) can run in parallel
-- Within US1: backend handlers (T008, T009) and frontend API (T011) can run in parallel
-- US2 tasks (T013–T015) and US3 tasks (T016–T018) can run in parallel after US1 basics work
-- All Polish tasks (T019–T023) can run in parallel
-
----
-
-## Parallel Example: User Story 1
-
-```bash
-# Launch backend handlers and frontend API in parallel:
-Task: "Extend auth.go with phone token + verify handlers"
-Task: "Extend auth.go with send-code + login-by-code handlers"
-Task: "Extend api.ts with phone auth methods"
-
-# Then, after handlers ready:
-Task: "Register phone auth routes in main.go"
-
-# Then, after API methods ready:
-Task: "Modify Login page with phone login tab and PNS/SMS integration"
-```
+- T024, T025, T026 (Phase 7 foundational) can run in parallel
+- T027, T028, T029, T030, T031 (US4) can mostly run in parallel except T031 depends on T030
+- T033, T034, T035 (US5 frontend) can run in parallel
+- T037, T038 (US6 page + route) can run in parallel with T040 (US7 store changes)
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### MVP Scope
 
-1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational
-3. Complete Phase 3: User Story 1 (core phone login with both PNS and SMS fallback)
-4. **STOP and VALIDATE**: Test both PNS and SMS paths end-to-end in Mock mode
-5. Deploy/demo if ready
+1. Complete Phase 7: Foundational Additions
+2. Complete Phase 8: US4 — Login page polish + forgot password backend
+3. **STOP and VALIDATE**: Test password login with remember-me, verify forgot-password backend works via curl
+4. Complete Phase 9: US5 — Registration enhancements
+5. Complete Phase 10: US6 — Forgot password page
+6. Complete Phase 11: US7 — Remember me full integration
+7. Complete Phase 12: Final polish and validation
 
 ### Incremental Delivery
 
-1. Complete Setup + Foundational → Foundation ready
-2. Add User Story 1 → Test PNS + SMS login independently → Deploy/Demo (MVP!)
-3. Add User Story 2 → Polish SMS fallback UX (countdown, error messages) → Deploy/Demo
-4. Add User Story 3 → Verify state persistence → Deploy/Demo
-5. Add Polish phase → Final cleanup → Deploy
-
-### Parallel Team Strategy
-
-With multiple developers:
-
-1. Team completes Setup + Foundational together
-2. Once Foundational is done:
-   - Developer A: T008 + T009 + T010 (backend handlers + routes)
-   - Developer B: T011 + T012 (frontend API + Login page integration)
-3. After US1 works:
-   - Developer A: T013 + T014 (frontend SMS polish)
-   - Developer B: T015 (backend error codes) + T016–T018 (US3 verification)
-4. Final Polish together
+1. Phase 7 → Backend ready for new features
+2. US4 → Login page has remember-me checkbox + forgot-password links + backend handlers → Deploy
+3. US5 → Registration with phone + strong passwords + auto-login → Deploy
+4. US6 → Forgot password page functional → Deploy
+5. US7 → Remember me works for all login methods → Deploy
+6. Polish → Final validation → Deploy
 
 ---
 

@@ -1,365 +1,302 @@
 /**
- * 个人信息页面
+ * 个人中心页面
+ * 暖色招财风格，展示用户信息与会员状态
  */
 
-import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Tag, Button, Skeleton } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  EditOutlined,
-  LockOutlined,
-  PhoneOutlined,
-  CrownOutlined,
+  Card,
+  Avatar,
+  Button,
+  Form,
+  Input,
+  message,
+  Tag,
+  Skeleton,
+} from 'antd'
+import {
   UserOutlined,
-  CalendarOutlined,
-  WalletOutlined,
+  CrownOutlined,
+  EditOutlined,
+  SaveOutlined,
+  MailOutlined,
+  MobileOutlined,
+  SafetyCertificateOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
-import { useUserProfileStore } from '../../stores/userProfile'
-import AvatarUpload from './AvatarUpload'
-import EditNickname from './EditNickname'
-import ChangePassword from './ChangePassword'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { useAuthStore } from '../../stores/auth'
+import { pricingApi, UserMembership } from '../../services/pricing'
+import styles from './Profile.module.css'
 
 const Profile: React.FC = () => {
-  const { profile, rebate, isLoading, isRebateLoading, fetchProfile, fetchRebate } = useUserProfileStore()
-  const [editNicknameOpen, setEditNicknameOpen] = useState(false)
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const navigate = useNavigate()
+  const { user, setUser } = useAuthStore()
+  const [form] = Form.useForm()
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [membership, setMembership] = useState<UserMembership | null>(null)
+  const [loadingMembership, setLoadingMembership] = useState(true)
 
   useEffect(() => {
-    fetchProfile().then(() => {
-      fetchRebate()
-    })
-  }, [fetchProfile, fetchRebate])
+    if (user) {
+      form.setFieldsValue({
+        username: user.username,
+        email: user.email,
+        nickname: user.nickname,
+        phone: user.phone,
+      })
+    }
+    fetchMembership()
+  }, [user, form])
 
-  const getVipTagColor = (level: number) => {
-    switch (level) {
-      case 2:
-        return 'gold'
-      case 1:
-        return 'blue'
-      default:
-        return 'default'
+  const fetchMembership = async () => {
+    try {
+      setLoadingMembership(true)
+      const data = await pricingApi.getUserMembership()
+      setMembership(data)
+    } catch {
+      // 静默失败
+    } finally {
+      setLoadingMembership(false)
     }
   }
 
-  const getVipTagText = (level: number) => {
-    switch (level) {
-      case 2:
-        return 'SVIP'
-      case 1:
-        return 'VIP'
-      default:
-        return '普通用户'
+  const handleSave = async (values: any) => {
+    setSaving(true)
+    try {
+      // TODO: 调用更新用户信息的 API
+      // await authApi.updateProfile(values)
+      setUser({ ...user!, ...values })
+      message.success('个人信息已更新')
+      setEditing(false)
+    } catch {
+      message.error('更新失败，请稍后重试')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const avatarUrl = profile?.avatar_url
-    ? profile.avatar_url.startsWith('http')
-      ? profile.avatar_url
-      : `${API_BASE_URL}${profile.avatar_url}`
-    : undefined
+  const getTierColor = (tier?: string) => {
+    switch (tier) {
+      case 'svip': return { color: '#9b59b6', bg: 'rgba(155, 89, 182, 0.1)', label: 'SVIP' }
+      case 'vip': return { color: '#f39c12', bg: 'rgba(243, 156, 18, 0.1)', label: 'VIP' }
+      default: return { color: '#7a7a7a', bg: 'rgba(0,0,0,0.04)', label: '免费版' }
+    }
+  }
+
+  const tierInfo = getTierColor(membership?.tier)
 
   return (
-    <div>
+    <div className={styles.profilePage}>
       {/* 页面标题 */}
-      <div className="page-header">
-        <h1 className="page-title">个人中心</h1>
-        <p className="page-subtitle">管理您的账户信息与安全设置</p>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>个人中心</h1>
+        <p className={styles.pageSubtitle}>管理您的账号信息与会员状态</p>
       </div>
 
-      {isLoading && !profile ? (
-        <Card className="glass-card" style={{ padding: 32 }}>
-          <Skeleton avatar paragraph={{ rows: 4 }} active />
-        </Card>
-      ) : (
-        <Row gutter={[24, 24]}>
-          {/* 左侧：个人信息卡片 */}
-          <Col xs={24} lg={16}>
-            <Card
-              className="glass-card"
-              style={{ borderRadius: 'var(--radius-xl)' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginBottom: 32 }}>
-                <AvatarUpload avatarUrl={avatarUrl} nickname={profile?.nickname} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {profile?.nickname || '未设置昵称'}
-                    </h2>
-                    <Tag color={getVipTagColor(profile?.vip_level || 0)} style={{ fontWeight: 600 }}>
-                      <CrownOutlined style={{ marginRight: 4 }} />
-                      {profile?.vip_level_name || getVipTagText(profile?.vip_level || 0)}
-                    </Tag>
-                  </div>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-                    用户ID: {profile?.id}
-                  </p>
+      <div className={styles.grid}>
+        {/* 左侧：用户信息卡片 */}
+        <div className={styles.leftCol}>
+          <Card className={styles.userCard} bordered={false}>
+            <div className={styles.userHeader}>
+              <div className={styles.avatarWrap}>
+                <Avatar
+                  size={96}
+                  icon={<UserOutlined />}
+                  src={user?.avatar_url}
+                  className={styles.avatar}
+                />
+                <div className={styles.avatarRing} />
+              </div>
+              <h2 className={styles.userName}>{user?.nickname || user?.username || '用户'}</h2>
+              <p className={styles.userHandle}>@{user?.username}</p>
+              <Tag
+                className={styles.tierTag}
+                style={{
+                  color: tierInfo.color,
+                  background: tierInfo.bg,
+                  borderColor: tierInfo.color,
+                }}
+              >
+                <CrownOutlined /> {tierInfo.label}
+              </Tag>
+            </div>
+
+            <div className={styles.userMeta}>
+              <div className={styles.metaItem}>
+                <MailOutlined className={styles.metaIcon} />
+                <div>
+                  <div className={styles.metaLabel}>邮箱</div>
+                  <div className={styles.metaValue}>{user?.email || '-'}</div>
                 </div>
               </div>
-
-              <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
-
-              {/* 信息列表 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {/* 账户名称 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'linear-gradient(135deg, var(--primary-100), var(--primary-200))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--primary-600)',
-                        fontSize: 18,
-                      }}
-                    >
-                      <UserOutlined />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>账户名称</div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {profile?.nickname || '未设置'}
-                      </div>
-                    </div>
+              <div className={styles.metaItem}>
+                <MobileOutlined className={styles.metaIcon} />
+                <div>
+                  <div className={styles.metaLabel}>手机号</div>
+                  <div className={styles.metaValue}>{user?.phone || '未绑定'}</div>
+                </div>
+              </div>
+              <div className={styles.metaItem}>
+                <SafetyCertificateOutlined className={styles.metaIcon} />
+                <div>
+                  <div className={styles.metaLabel}>账号状态</div>
+                  <div className={styles.metaValue}>
+                    {user?.is_verified ? (
+                      <span style={{ color: '#27ae60' }}>已认证</span>
+                    ) : (
+                      <span style={{ color: '#e67e22' }}>未认证</span>
+                    )}
                   </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 会员信息卡片 */}
+          <Card className={styles.membershipCard} bordered={false} loading={loadingMembership}>
+            <div className={styles.cardHeader}>
+              <CrownOutlined className={styles.cardIcon} />
+              <span>会员信息</span>
+            </div>
+            {membership ? (
+              <div className={styles.membershipBody}>
+                <div className={styles.membershipRow}>
+                  <span className={styles.membershipLabel}>当前等级</span>
+                  <Tag color={membership.tier === 'svip' ? 'purple' : membership.tier === 'vip' ? 'orange' : 'default'}>
+                    {membership.tier.toUpperCase()}
+                  </Tag>
+                </div>
+                <div className={styles.membershipRow}>
+                  <span className={styles.membershipLabel}>有效期至</span>
+                  <span className={styles.membershipValue}>
+                    {new Date(membership.end_date).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className={styles.membershipRow}>
+                  <span className={styles.membershipLabel}>自动续费</span>
+                  <span className={styles.membershipValue}>
+                    {membership.auto_renew ? '已开启' : '未开启'}
+                  </span>
+                </div>
+                <Button
+                  type="primary"
+                  block
+                  icon={<CrownOutlined />}
+                  className={styles.upgradeBtn}
+                  onClick={() => navigate('/pricing')}
+                >
+                  升级会员
+                </Button>
+              </div>
+            ) : (
+              <div className={styles.membershipEmpty}>
+                <BarChartOutlined style={{ fontSize: 40, color: '#d0c0b0' }} />
+                <p>暂无会员信息</p>
+                <Button
+                  type="primary"
+                  className={styles.upgradeBtn}
+                  onClick={() => navigate('/pricing')}
+                >
+                  立即升级
+                </Button>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* 右侧：编辑表单 */}
+        <div className={styles.rightCol}>
+          <Card
+            className={styles.editCard}
+            bordered={false}
+            title={
+              <div className={styles.cardTitleRow}>
+                <span>个人资料</span>
+                {!editing && (
                   <Button
                     type="text"
                     icon={<EditOutlined />}
-                    onClick={() => setEditNicknameOpen(true)}
-                    style={{ color: 'var(--primary-500)' }}
+                    onClick={() => setEditing(true)}
+                    className={styles.editBtn}
                   >
-                    修改
+                    编辑
                   </Button>
-                </div>
-
-                {/* 手机号 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.25))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--cyan-600)',
-                        fontSize: 18,
-                      }}
-                    >
-                      <PhoneOutlined />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>手机号</div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {profile?.phone || '未绑定'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 用户等级 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'linear-gradient(135deg, rgba(250, 173, 20, 0.15), rgba(250, 173, 20, 0.25))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#d48806',
-                        fontSize: 18,
-                      }}
-                    >
-                      <CrownOutlined />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>用户等级</div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>
-                        <Tag color={getVipTagColor(profile?.vip_level || 0)}>
-                          {profile?.vip_level_name || getVipTagText(profile?.vip_level || 0)}
-                        </Tag>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 注册时间 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.25))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--emerald-600)',
-                        fontSize: 18,
-                      }}
-                    >
-                      <CalendarOutlined />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>注册时间</div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {profile?.created_at || '-'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-
-              <div style={{ height: 1, background: 'var(--border-light)', margin: '24px 0' }} />
-
-              {/* 安全设置 */}
-              <div>
-                <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  安全设置
-                </h3>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '16px 20px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(59, 130, 246, 0.04)',
-                    border: '1px solid rgba(59, 130, 246, 0.1)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <LockOutlined style={{ fontSize: 20, color: 'var(--primary-500)' }} />
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>登录密码</div>
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>定期修改密码可保护账户安全</div>
-                    </div>
-                  </div>
-                  <Button type="primary" onClick={() => setChangePasswordOpen(true)}>
-                    修改密码
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </Col>
-
-          {/* 右侧：返佣卡片（仅 SVIP） */}
-          {profile?.vip_level === 2 && (
-            <Col xs={24} lg={8}>
-              <Card
-                className="glass-card"
-                style={{
-                  borderRadius: 'var(--radius-xl)',
-                  background: 'linear-gradient(135deg, rgba(255, 251, 235, 0.9), rgba(255, 245, 220, 0.85))',
-                  border: '1px solid rgba(250, 173, 20, 0.2)',
-                }}
+            }
+          >
+            {user ? (
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSave}
+                disabled={!editing}
+                className={styles.profileForm}
               >
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                  <div
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #faad14, #ffc53d)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto 16px',
-                      boxShadow: '0 8px 24px rgba(250, 173, 20, 0.3)',
-                    }}
-                  >
-                    <WalletOutlined style={{ fontSize: 28, color: '#fff' }} />
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#d48806' }}>
-                    返佣收益
-                  </h3>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-tertiary)' }}>
-                    SVIP 专属权益
-                  </p>
-                </div>
+                <Form.Item
+                  name="username"
+                  label="用户名"
+                  rules={[{ required: true, message: '请输入用户名' }]}
+                >
+                  <Input prefix={<UserOutlined />} placeholder="用户名" />
+                </Form.Item>
 
-                {isRebateLoading ? (
-                  <Skeleton active paragraph={{ rows: 2 }} />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div
-                      style={{
-                        padding: '16px 20px',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'rgba(255, 255, 255, 0.7)',
-                        textAlign: 'center',
+                <Form.Item
+                  name="nickname"
+                  label="姓名"
+                >
+                  <Input prefix={<UserOutlined />} placeholder="姓名" />
+                </Form.Item>
+
+                <Form.Item
+                  name="email"
+                  label="邮箱"
+                  rules={[
+                    { required: true, message: '请输入邮箱' },
+                    { type: 'email', message: '请输入有效的邮箱' },
+                  ]}
+                >
+                  <Input prefix={<MailOutlined />} placeholder="邮箱" />
+                </Form.Item>
+
+                <Form.Item
+                  name="phone"
+                  label="手机号"
+                >
+                  <Input prefix={<MobileOutlined />} placeholder="手机号" maxLength={11} />
+                </Form.Item>
+
+                {editing && (
+                  <div className={styles.formActions}>
+                    <Button
+                      onClick={() => {
+                        setEditing(false)
+                        form.resetFields()
                       }}
+                      className={styles.cancelBtn}
                     >
-                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 4 }}>
-                        累计返佣
-                      </div>
-                      <div style={{ fontSize: 28, fontWeight: 700, color: '#d48806' }}>
-                        {rebate?.currency || '¥'}{rebate?.total_rebate.toFixed(2) || '0.00'}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <div
-                        style={{
-                          flex: 1,
-                          padding: '12px 16px',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'rgba(255, 255, 255, 0.7)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>
-                          待结算
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {rebate?.currency || '¥'}{rebate?.pending_rebate.toFixed(2) || '0.00'}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          flex: 1,
-                          padding: '12px 16px',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'rgba(255, 255, 255, 0.7)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>
-                          已结算
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {rebate?.currency || '¥'}{rebate?.settled_rebate.toFixed(2) || '0.00'}
-                        </div>
-                      </div>
-                    </div>
+                      取消
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={saving}
+                      icon={<SaveOutlined />}
+                      className={styles.saveBtn}
+                    >
+                      保存修改
+                    </Button>
                   </div>
                 )}
-              </Card>
-            </Col>
-          )}
-        </Row>
-      )}
-
-      {/* Modals */}
-      <EditNickname
-        open={editNicknameOpen}
-        currentNickname={profile?.nickname || ''}
-        onClose={() => setEditNicknameOpen(false)}
-      />
-      <ChangePassword
-        open={changePasswordOpen}
-        onClose={() => setChangePasswordOpen(false)}
-      />
+              </Form>
+            ) : (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

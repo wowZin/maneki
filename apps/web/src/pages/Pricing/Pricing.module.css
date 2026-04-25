@@ -1,0 +1,250 @@
+/* ============================================
+   Pricing Page - Clean grid layout
+   ============================================ */
+
+.page {
+  padding: 32px 24px 60px;
+  position: relative;
+  z-index: 1;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Header */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.pageTitle {
+  margin: 0 0 12px;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  font-size: clamp(28px, 5vw, 40px);
+  font-weight: 400;
+  color: #3a2a1a;
+  letter-spacing: 0.02em;
+}
+
+.pageSubtitle {
+  margin: 0 auto;
+  font-size: 16px;
+  color: #8a7a6a;
+  max-width: 520px;
+  line-height: 1.7;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+/* Discount banner */
+.discountBanner {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+  margin: 0 auto 32px;
+  display: flex;
+  justify-content: center;
+  width: fit-content;
+}
+
+.discountEmoji {
+  font-size: 22px;
+}
+
+.discountLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.discountDate {
+  font-size: 13px;
+  color: #a16207;
+}
+
+/* Cycle toggle */
+.cycleToggleWrap {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.cycleToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.cycleBtn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  background: transparent;
+  color: #8a8a9a;
+  transition: all 0.3s ease;
+}
+
+.cycleBtnActive {
+  background: #fff;
+  color: #1a1a2e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Pricing grid */
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.pricingGrid > * {
+  min-width: 0;
+}
+
+.skeletonCard {
+  height: 520px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* FAQ section */
+.faqSection {
+  margin-top: 64px;
+}
+
+.faqTitle {
+  text-align: center;
+  margin: 0 0 32px;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #3a2a1a;
+}
+
+.faqGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.faqCard {
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  text-align: center;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.faqCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+}
+
+.faqIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 22px;
+}
+
+.faqCardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.faqCardDesc {
+  font-size: 14px;
+  color: #6a6a7a;
+  line-height: 1.6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.footer p {
+  margin: 0 0 8px;
+  color: #6a6a7a;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.footerLink {
+  color: #d97706;
+  font-weight: 600;
+  margin-left: 6px;
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+.footerLegal {
+  font-size: 12px !important;
+  color: #9a9aaa !important;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .pricingGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .faqGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 24px 16px 40px;
+  }
+
+  .pricingGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .faqGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .discountBanner {
+    flex-wrap: wrap;
+    padding: 10px 18px;
+    gap: 6px;
+  }
+
+  .pageHeader {
+    margin-bottom: 24px;
+  }
+}
