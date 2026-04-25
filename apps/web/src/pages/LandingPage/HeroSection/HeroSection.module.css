@@ -1,7 +1,7 @@
 .hero {
   position: relative;
-  height: 66vh;
-  min-height: 480px;
+  height: 100vh;
+  min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,67 +13,287 @@
   z-index: 1;
   text-align: center;
   padding: 0 24px;
-  max-width: 900px;
+  max-width: 960px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
+  gap: 48px;
 }
 
-/* Slogan 样式 */
+/* ====== 装饰性浮动元素 ====== */
+.decorCircle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.decor1 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 200, 80, 0.08) 0%, transparent 70%);
+  top: 10%;
+  left: -5%;
+  animation: decorFloat 18s ease-in-out infinite;
+}
+
+.decor2 {
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 120, 120, 0.06) 0%, transparent 70%);
+  bottom: 15%;
+  right: -3%;
+  animation: decorFloat 22s ease-in-out infinite reverse;
+}
+
+.decor3 {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(120, 200, 255, 0.06) 0%, transparent 70%);
+  top: 55%;
+  left: 10%;
+  animation: decorFloat 16s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+@keyframes decorFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, -15px) scale(1.05); }
+  66% { transform: translate(-10px, 10px) scale(0.97); }
+}
+
+/* ====== Slogan 样式 ====== */
 .sloganContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 56px 72px;
+  border-radius: 40px;
+  border: 1px solid rgba(200, 170, 130, 0.18);
+  box-shadow:
+    0 8px 48px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset,
+    0 -2px 16px rgba(255, 255, 255, 0.4) inset;
+  opacity: 1;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sloganVisible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .mainTitle {
   margin: 0;
-  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: clamp(36px, 6vw, 72px);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: #fff;
+  font-family: 'Shrikhand', 'Noto Serif SC', 'STSong', serif;
+  font-size: clamp(44px, 7.5vw, 92px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: 0.02em;
 }
 
 .titleLine {
   display: block;
+  opacity: 1;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.highlight {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+.titleVisible .titleLine:nth-child(1) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.15s;
+}
+
+.titleVisible .titleLine:nth-child(2) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.35s;
+}
+
+/* 彩虹渐变文字 */
+.rainbowText {
+  background: linear-gradient(
+    90deg,
+    #c0392b 0%,
+    #d35400 14%,
+    #f39c12 28%,
+    #27ae60 42%,
+    #2980b9 56%,
+    #8e44ad 70%,
+    #c0392b 84%,
+    #d35400 100%
+  );
+  background-size: 250% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: rainbowShift 6s linear infinite;
+}
+
+@keyframes rainbowShift {
+  0% { background-position: 0% center; }
+  100% { background-position: 250% center; }
+}
+
+/* 金色强调文字 */
+.goldText {
+  color: #c9a227;
+  text-shadow: 0 2px 12px rgba(201, 162, 39, 0.2);
 }
 
 .subTitle {
   margin: 0;
+  font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif;
   font-size: clamp(16px, 2vw, 22px);
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.7;
+  color: #6a5a4a;
   max-width: 560px;
+  font-weight: 400;
+  opacity: 1;
+  transform: translateY(16px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.5s, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.5s;
+}
+
+.subTitleVisible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .badgeRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
-  margin-top: 8px;
+  opacity: 1;
+  transform: translateY(12px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.7s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.7s;
+}
+
+.badgeRowVisible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .badge {
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(200, 160, 100, 0.2);
+  color: #8a6c4a;
   backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(150, 100, 50, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(150, 100, 50, 0.1);
+  border-color: rgba(200, 160, 100, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* CTA 按钮 */
+.ctaRow {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  opacity: 1;
+  transform: translateY(16px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.9s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.9s;
+}
+
+.ctaRowVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ctaPrimary {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 17px 44px;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 50%, #d35400 100%);
+  box-shadow:
+    0 4px 20px rgba(230, 126, 34, 0.35),
+    0 0 0 1px rgba(230, 126, 34, 0.12) inset,
+    0 -2px 8px rgba(255, 255, 255, 0.2) inset;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaPrimary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+}
+
+.ctaPrimary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 10px 32px rgba(230, 126, 34, 0.45),
+    0 0 0 1px rgba(230, 126, 34, 0.2) inset,
+    0 -2px 8px rgba(255, 255, 255, 0.25) inset;
+}
+
+.ctaPrimary:hover::before {
+  transform: translateX(100%);
+}
+
+.ctaPrimary:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.ctaPrimary:focus-visible {
+  outline: 3px solid rgba(230, 126, 34, 0.4);
+  outline-offset: 3px;
+}
+
+.ctaSecondary {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 17px 44px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(150, 120, 80, 0.25);
+  cursor: pointer;
+  color: #7a5c3a;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(150, 100, 50, 0.04);
+}
+
+.ctaSecondary:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(150, 120, 80, 0.45);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(150, 100, 50, 0.08);
+}
+
+.ctaSecondary:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.ctaSecondary:focus-visible {
+  outline: 3px solid rgba(150, 120, 80, 0.3);
+  outline-offset: 3px;
 }
 
 /* 向下滚动提示 */
@@ -81,32 +301,39 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.6);
+  border: 1.5px solid rgba(180, 140, 80, 0.25);
+  background: rgba(255, 255, 255, 0.5);
+  color: #b09060;
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(8px);
+  opacity: 1;
+  animation: scrollHintIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.2s forwards;
+}
+
+@keyframes scrollHintIn {
+  from { opacity: 1; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .scrollHint:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.35);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(180, 140, 80, 0.45);
+  color: #c9a227;
   transform: translateY(2px);
 }
 
 .scrollHint:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline: 2px solid rgba(201, 162, 39, 0.5);
   outline-offset: 3px;
 }
 
 .chevron {
   font-size: 16px;
-  animation: bounce 2s ease-in-out infinite;
+  animation: bounce 2.2s ease-in-out infinite;
 }
 
 @keyframes bounce {
@@ -116,20 +343,58 @@
 
 /* 减少动态效果 */
 @media (prefers-reduced-motion: reduce) {
+  .rainbowText {
+    animation: none;
+  }
   .chevron {
     animation: none;
+  }
+  .ctaPrimary::before {
+    display: none;
+  }
+  .decor1,
+  .decor2,
+  .decor3 {
+    animation: none;
+  }
+  .sloganContainer,
+  .titleLine,
+  .subTitle,
+  .badgeRow,
+  .ctaRow,
+  .scrollHint {
+    opacity: 1;
+    transform: none;
+    animation: none;
+    transition: none;
   }
 }
 
 /* 响应式 */
 @media (max-width: 768px) {
   .hero {
-    min-height: 420px;
-    height: 60vh;
+    min-height: 480px;
+    height: 65vh;
   }
 
   .content {
-    gap: 32px;
+    gap: 36px;
+  }
+
+  .sloganContainer {
+    padding: 36px 28px;
+    border-radius: 28px;
+    gap: 20px;
+  }
+
+  .ctaRow {
+    gap: 12px;
+  }
+
+  .ctaPrimary,
+  .ctaSecondary {
+    padding: 14px 32px;
+    font-size: 15px;
   }
 
   .badgeRow {
@@ -137,7 +402,7 @@
   }
 
   .badge {
-    font-size: 12px;
-    padding: 5px 12px;
+    font-size: 11px;
+    padding: 6px 14px;
   }
 }

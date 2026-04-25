@@ -91,6 +91,10 @@ export const useWechatAuth = (): UseWechatAuthReturn => {
       if (wechatEnv) {
         const miniEnv = await isMiniProgramWebView()
         setIsMiniProgram(miniEnv)
+      } else {
+        // 普通浏览器环境，直接显示普通登录表单
+        setShowNormalLogin(true)
+        setShowWechatLogin(false)
       }
 
       setIsLoading(false)
@@ -113,7 +117,7 @@ export const useWechatAuth = (): UseWechatAuthReturn => {
             id: response.user_info.id,
             email: '',  // 微信用户可能没有邮箱
             username: response.user_info.username,
-            full_name: response.user_info.nickname,
+            nickname: response.user_info.nickname,
             avatar_url: response.user_info.avatar_url,
             phone: response.user_info.phone,
             is_active: true,
@@ -192,7 +196,7 @@ export const useWechatAuth = (): UseWechatAuthReturn => {
               id: response.user_info.id,
               email: '',
               username: response.user_info.username,
-              full_name: response.user_info.nickname,
+              nickname: response.user_info.nickname,
               avatar_url: response.user_info.avatar_url,
               phone: response.user_info.phone,
               is_active: true,

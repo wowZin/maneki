@@ -6,12 +6,11 @@ import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../stores/auth'
 
 // API 基础配置
-// 开发环境留空走 Vite 代理（避免跨域），生产环境通过构建注入完整 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // 创建 axios 实例
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1/client`,
+  baseURL: `${API_BASE_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -37,7 +36,16 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token 过期或无效，登出
+      const authPaths = ['/login', '/register', '/forgot-password']
+      const isAuthPage = authPaths.some((p) => window.location.pathname.startsWith(p))
+      const isAuthRequest = error.config?.url?.startsWith('/auth/')
+
+      // 已在登录页或请求的是登录接口，不跳转，把错误抛给业务层处理
+      if (isAuthPage || isAuthRequest) {
+        return Promise.reject(error)
+      }
+
+      // Token 过期或无效，登出并跳转到登录页
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }
@@ -51,10 +59,11 @@ export interface RegisterData {
   password: string
   username: string
   full_name?: string
+  phone?: string
 }
 
 export interface LoginData {
-  username: string  // FastAPI-Users 使用 username 字段作为登录名
+  username: string
   password: string
 }
 
@@ -84,6 +93,16 @@ export interface CodeLoginData {
   code: string
 }
 
+export interface SendForgotPasswordCodeData {
+  phone: string
+}
+
+export interface ResetPasswordData {
+  phone: string
+  code: string
+  new_password: string
+}
+
 export interface TokenResponse {
   access_token: string
   refresh_token: string
@@ -93,11 +112,12 @@ export interface TokenResponse {
     id: string
     email: string
     username: string
-    nickname: string
-    avatar_url: string
-    vip_level: number
-    vip_tier: string
-    is_vip: boolean
+    nickname?: string
+    phone?: string
+    avatar_url?: string
+    vip_level?: number
+    vip_tier?: string
+    is_vip?: boolean
     is_superuser: boolean
     is_active: boolean
     is_verified: boolean
@@ -106,32 +126,20 @@ export interface TokenResponse {
 
 export const authApi = {
   // 注册
-  register: async (data: RegisterData) => {
+  register: async (data: RegisterData): Promise<TokenResponse> => {
     const response = await api.post('/auth/register', data)
     return response.data
   },
 
   // 登录
-  login: async (data: LoginData): Promise<AuthResponse> => {
-    const formData = new URLSearchParams()
-    formData.append('username', data.username)
-    formData.append('password', data.password)
-
-    const response = await axios.post(
-      `${API_BASE_URL}/api/v1/client/auth/jwt/login`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    )
+  login: async (data: LoginData): Promise<TokenResponse> => {
+    const response = await api.post('/auth/login', data)
     return response.data
   },
 
   // 获取当前用户信息
   getCurrentUser: async () => {
-    const response = await api.get('/auth/users/me')
+    const response = await api.get('/auth/me')
     return response.data
   },
 
@@ -164,6 +172,17 @@ export const authApi = {
   // 短信验证码登录
   loginByCode: async (data: CodeLoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/phone/login-by-code', data)
+    return response.data
+  },
+
+  // 忘记密码
+  sendForgotPasswordCode: async (data: SendForgotPasswordCodeData) => {
+    const response = await api.post('/auth/forgot-password/send-code', data)
+    return response.data
+  },
+
+  resetPassword: async (data: ResetPasswordData): Promise<TokenResponse> => {
+    const response = await api.post('/auth/forgot-password/reset', data)
     return response.data
   },
 }

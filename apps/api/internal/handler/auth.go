@@ -45,8 +45,10 @@ func NewAuthHandler(cfg *config.Config, userRepo *repository.UserRepository, red
 // RegisterRequest 注册请求
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=8"`
 	Nickname string `json:"nickname"`
+	FullName string `json:"full_name"`
 	Phone    string `json:"phone"`
 }
 
@@ -72,6 +74,7 @@ type UserInfo struct {
 	Email       string `json:"email"`
 	Username    string `json:"username"`
 	Nickname    string `json:"nickname"`
+	Phone       string `json:"phone"`
 	AvatarURL   string `json:"avatar_url"`
 	VIPLevel    int    `json:"vip_level"`
 	VIPTier     string `json:"vip_tier"`
@@ -92,21 +95,36 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// 检查邮箱是否已存在
 	existingUser, _ := h.userRepo.GetByEmail(c.Request.Context(), req.Email)
 	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
+		c.JSON(http.StatusConflict, gin.H{"error": "该邮箱已被注册"})
+		return
+	}
+
+	// 检查用户名是否已存在
+	existingUser, _ = h.userRepo.GetByUsername(c.Request.Context(), req.Username)
+	if existingUser != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "该用户名已被使用"})
+		return
+	}
+
+	// 密码强度验证
+	if err := validatePasswordStrength(req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
 	// 创建用户
 	user := &model.User{
 		Email:          req.Email,
+		Username:       req.Username,
 		Nickname:       req.Nickname,
+		FullName:       req.FullName,
 		Phone:          req.Phone,
 		HashedPassword: string(hashedPassword),
 		RegisterSource: "email",
@@ -116,20 +134,20 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.userRepo.Create(c.Request.Context(), user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "注册失败，请稍后重试"})
 		return
 	}
 
 	// 生成Token
 	accessToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.AccessTokenExpire)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
 	refreshToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.RefreshTokenExpire)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
@@ -149,6 +167,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			Email:       user.Email,
 			Username:    user.Username,
 			Nickname:    user.Nickname,
+			Phone:       user.Phone,
 			AvatarURL:   user.AvatarURL,
 			VIPLevel:    user.VIPLevel,
 			VIPTier:     user.VIPTier(),
@@ -168,7 +187,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// 验证 username 或 email 至少提供一个
 	if req.Username == "" && req.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username or email is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入用户名或邮箱"})
 		return
 	}
 
@@ -186,7 +205,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		// 格式化剩余时间为可读字符串
 		retryAfter := formatDuration(ttl)
 		c.JSON(http.StatusTooManyRequests, gin.H{
-			"error":       "account locked",
+			"error":       "登录失败次数过多，账号已锁定，请" + retryAfter + "后再试",
 			"retry_after": retryAfter,
 		})
 		return
@@ -198,6 +217,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 先尝试用 username 查找
 	if req.Username != "" {
 		user, err = h.userRepo.GetByUsername(c.Request.Context(), req.Username)
+		// 如果 username 查找失败，且输入看起来像邮箱，再尝试用 email 查找
+		if (err != nil || user == nil) && strings.Contains(req.Username, "@") {
+			user, err = h.userRepo.GetByEmail(c.Request.Context(), req.Username)
+		}
 	} else {
 		// 否则用 email 查找
 		user, err = h.userRepo.GetByEmail(c.Request.Context(), req.Email)
@@ -206,7 +229,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil || user == nil {
 		h.loginProtection.RecordFailedAttempt(identifier, ip)
 		h.auditLogger.Log("login_failed", "", identifier, map[string]interface{}{"reason": "user_not_found"}, c)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
 		return
 	}
 
@@ -214,7 +237,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
 		h.loginProtection.RecordFailedAttempt(identifier, ip)
 		h.auditLogger.Log("login_failed", "", identifier, map[string]interface{}{"reason": "invalid_password"}, c)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
 		return
 	}
 
@@ -224,13 +247,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 生成Token
 	accessToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.AccessTokenExpire)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
 	refreshToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.RefreshTokenExpire)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
@@ -250,6 +273,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			Email:       user.Email,
 			Username:    user.Username,
 			Nickname:    user.Nickname,
+			Phone:       user.Phone,
 			AvatarURL:   user.AvatarURL,
 			VIPLevel:    user.VIPLevel,
 			VIPTier:     user.VIPTier(),
@@ -366,7 +390,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	// 生成新的access token
 	accessToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.AccessTokenExpire)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
@@ -402,6 +426,7 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 		Email:       user.Email,
 		Username:    user.Username,
 		Nickname:    user.Nickname,
+		Phone:       user.Phone,
 		AvatarURL:   user.AvatarURL,
 		VIPLevel:    user.VIPLevel,
 		VIPTier:     user.VIPTier(),
@@ -657,6 +682,186 @@ func (h *AuthHandler) findOrCreateUserByPhone(ctx context.Context, phone string)
 	}
 
 	return user, nil
+}
+
+// ForgotPasswordSendCodeRequest 忘记密码发送验证码请求
+type ForgotPasswordSendCodeRequest struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+// ForgotPasswordResetRequest 忘记密码重置请求
+type ForgotPasswordResetRequest struct {
+	Phone       string `json:"phone" binding:"required"`
+	Code        string `json:"code" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
+}
+
+// SendForgotPasswordCode 发送忘记密码验证码
+func (h *AuthHandler) SendForgotPasswordCode(c *gin.Context) {
+	var req ForgotPasswordSendCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	// 验证手机号是否已注册
+	user, err := h.userRepo.GetByPhone(c.Request.Context(), req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂不可用"})
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "该手机号未注册"})
+		return
+	}
+
+	// IP频率限制检查
+	ip := c.ClientIP()
+	ipLimitKey := fmt.Sprintf("sms:limit:forgot_ip:%s", ip)
+	ipCount, err := h.redis.Incr(c.Request.Context(), ipLimitKey).Result()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂不可用"})
+		return
+	}
+	if ipCount == 1 {
+		_ = h.redis.Expire(c.Request.Context(), ipLimitKey, 60*time.Second)
+	}
+	if ipCount > 10 {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error": "操作过于频繁，请稍后再试",
+			"code":  "rate_limited_ip",
+		})
+		return
+	}
+
+	// 发送验证码
+	_, err = h.smsService.SendForgotPasswordCode(c.Request.Context(), req.Phone)
+	if err != nil {
+		if strings.Contains(err.Error(), "rate limited") {
+			phoneLimitKey := fmt.Sprintf("sms:limit:forgot:%s", req.Phone)
+			ttl, _ := h.redis.TTL(c.Request.Context(), phoneLimitKey).Result()
+			retryAfter := int(ttl.Seconds())
+			if retryAfter < 0 {
+				retryAfter = 60
+			}
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "请稍后再试",
+				"code":        "rate_limited_phone",
+				"retry_after": retryAfter,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "短信发送失败，请稍后重试"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "验证码已发送"})
+}
+
+// ResetPassword 重置密码
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req ForgotPasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
+		return
+	}
+
+	// 密码强度验证
+	if err := validatePasswordStrength(req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 验证验证码
+	valid, err := h.smsService.ValidateForgotPasswordCode(c.Request.Context(), req.Phone, req.Code)
+	if err != nil {
+		if strings.Contains(err.Error(), "expired") || strings.Contains(err.Error(), "not requested") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "验证码已过期，请重新获取",
+				"code":  "code_expired",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "验证失败，请稍后重试"})
+		return
+	}
+	if !valid {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "验证码错误，请重新输入",
+			"code":  "invalid_code",
+		})
+		return
+	}
+
+	// 查找用户
+	user, err := h.userRepo.GetByPhone(c.Request.Context(), req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务暂不可用"})
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "该手机号未注册"})
+		return
+	}
+
+	// 加密新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
+		return
+	}
+
+	// 更新密码
+	user.HashedPassword = string(hashedPassword)
+	if err := h.userRepo.Update(c.Request.Context(), user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码更新失败"})
+		return
+	}
+
+	h.auditLogger.Log("password_reset", user.ID.String(), req.Phone, nil, c)
+
+	// 生成Token并自动登录
+	if err := h.generateAndSetTokens(c, user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败，请稍后重试"})
+		return
+	}
+}
+
+// validatePasswordStrength 验证密码强度
+func validatePasswordStrength(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("密码至少8位")
+	}
+
+	hasLetter := false
+	hasDigit := false
+	for _, ch := range password {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+			hasLetter = true
+		}
+		if ch >= '0' && ch <= '9' {
+			hasDigit = true
+		}
+	}
+
+	if !hasLetter {
+		return fmt.Errorf("密码必须包含字母")
+	}
+	if !hasDigit {
+		return fmt.Errorf("密码必须包含数字")
+	}
+
+	return nil
 }
 
 // generateAndSetTokens 生成JWT并设置Cookie

@@ -1,0 +1,320 @@
+.profilePage {
+  position: relative;
+  z-index: 1;
+}
+
+.pageHeader {
+  margin-bottom: 32px;
+}
+
+.pageTitle {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  letter-spacing: 0.01em;
+}
+
+.pageSubtitle {
+  margin: 0;
+  font-size: 15px;
+  color: #8a7a6a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+}
+
+/* ====== 用户卡片 ====== */
+.userCard {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(200, 170, 130, 0.15);
+  box-shadow:
+    0 4px 20px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  overflow: hidden;
+}
+
+.userCard :global(.ant-card-body) {
+  padding: 32px 24px;
+}
+
+.userHeader {
+  text-align: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(200, 170, 130, 0.12);
+  margin-bottom: 20px;
+}
+
+.avatarWrap {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 16px rgba(230, 126, 34, 0.2);
+}
+
+.avatarRing {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(243, 156, 18, 0.2);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+
+@keyframes ringPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.userName {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #3a2a1a;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.userHandle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #a09080;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.tierTag {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 16px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.metaIcon {
+  font-size: 18px;
+  color: #c9a227;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(201, 162, 39, 0.08);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.metaLabel {
+  font-size: 12px;
+  color: #a09080;
+  margin-bottom: 2px;
+}
+
+.metaValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: #3a2a1a;
+}
+
+/* ====== 会员卡片 ====== */
+.membershipCard {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(200, 170, 130, 0.15);
+  box-shadow:
+    0 4px 20px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.membershipCard :global(.ant-card-body) {
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #3a2a1a;
+  margin-bottom: 20px;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.cardIcon {
+  font-size: 20px;
+  color: #c9a227;
+}
+
+.membershipBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.membershipRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.membershipLabel {
+  font-size: 14px;
+  color: #8a7a6a;
+}
+
+.membershipValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3a2a1a;
+}
+
+.membershipEmpty {
+  text-align: center;
+  padding: 20px 0;
+  color: #a09080;
+}
+
+.membershipEmpty p {
+  margin: 12px 0 16px;
+  font-size: 14px;
+}
+
+.upgradeBtn {
+  border-radius: 12px;
+  height: 44px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border: none;
+  box-shadow: 0 4px 14px rgba(230, 126, 34, 0.3);
+}
+
+.upgradeBtn:hover {
+  background: linear-gradient(135deg, #e67e22, #d35400) !important;
+  box-shadow: 0 6px 20px rgba(230, 126, 34, 0.4) !important;
+}
+
+/* ====== 右侧编辑卡片 ====== */
+.editCard {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(200, 170, 130, 0.15);
+  box-shadow:
+    0 4px 20px rgba(150, 100, 50, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.editCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(200, 170, 130, 0.12);
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+.editCard :global(.ant-card-body) {
+  padding: 32px;
+}
+
+.cardTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.editBtn {
+  color: #d35400;
+  font-weight: 600;
+}
+
+.editBtn:hover {
+  color: #e67e22;
+  background: rgba(230, 126, 34, 0.06);
+}
+
+.profileForm :global(.ant-form-item-label > label) {
+  color: #5a4a3a;
+  font-weight: 500;
+}
+
+.profileForm :global(.ant-input) {
+  border-radius: 12px;
+  border: 1px solid rgba(200, 170, 130, 0.25);
+  background: rgba(255, 255, 255, 0.8);
+  height: 44px;
+}
+
+.profileForm :global(.ant-input:hover) {
+  border-color: rgba(230, 126, 34, 0.4);
+}
+
+.profileForm :global(.ant-input:focus) {
+  border-color: #e67e22;
+  box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.1);
+}
+
+.formActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.cancelBtn {
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 24px;
+  border: 1px solid rgba(200, 170, 130, 0.3);
+  color: #7a6a5a;
+}
+
+.saveBtn {
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(230, 126, 34, 0.3);
+}
+
+.saveBtn:hover {
+  background: linear-gradient(135deg, #e67e22, #d35400) !important;
+}
+
+/* 响应式 */
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .leftCol {
+    order: 0;
+  }
+
+  .userCard :global(.ant-card-body),
+  .editCard :global(.ant-card-body) {
+    padding: 24px 20px;
+  }
+}

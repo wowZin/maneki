@@ -1,60 +1,121 @@
 .section {
   position: relative;
-  padding: 80px 24px;
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  padding: 100px 24px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 200, 120, 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, #FFF8F0 0%, #FFF5EB 50%, #FFFBF5 100%);
+  overflow: hidden;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255, 200, 100, 0.03) 0%, transparent 35%),
+    radial-gradient(circle at 90% 80%, rgba(255, 150, 150, 0.02) 0%, transparent 35%);
+  pointer-events: none;
 }
 
 .container {
-  max-width: 1200px;
+  position: relative;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 56px;
+  margin-bottom: 48px;
 }
 
 .iconWrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.25));
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(230, 126, 34, 0.25));
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  font-size: 24px;
-  color: #f59e0b;
+  font-size: 28px;
+  color: #d35400;
+  box-shadow: 0 4px 16px rgba(230, 126, 34, 0.15);
 }
 
 .title {
   margin: 0 0 12px;
-  font-size: clamp(24px, 3.5vw, 36px);
+  font-size: clamp(26px, 3.5vw, 40px);
   font-weight: 700;
-  color: #fff;
-  font-family: 'Space Grotesk', sans-serif;
+  color: #3a2a1a;
+  font-family: 'Shrikhand', 'Noto Serif SC', serif;
+  letter-spacing: 0.02em;
 }
 
 .subtitle {
-  margin: 0;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.6);
+  margin: 0 auto 32px;
+  font-size: 17px;
+  color: #8a7a6a;
   max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
   line-height: 1.6;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+
+/* 周期切换 */
+.periodToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(200, 170, 130, 0.2);
+  border-radius: 14px;
+  padding: 4px;
+  backdrop-filter: blur(8px);
+  margin-bottom: 48px;
+}
+
+.periodBtn {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  color: #9a8a7a;
+  background: transparent;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.periodBtn:hover {
+  color: #7a6a5a;
+}
+
+.periodBtnActive {
+  color: #3a2a1a;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(150, 100, 50, 0.08);
+}
+
+.periodSave {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e74c3c;
+  margin-left: 4px;
 }
 
 .skeletonCard {
-  height: 480px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  height: 520px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(200, 160, 100, 0.1);
+  box-shadow: 0 4px 20px rgba(150, 100, 50, 0.05);
 }
 
 .footerNote {
   text-align: center;
-  margin-top: 40px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  margin-top: 48px;
+  font-size: 14px;
+  color: #b0a090;
+  font-family: 'DM Sans', -apple-system, sans-serif;
 }

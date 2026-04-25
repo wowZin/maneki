@@ -1,9 +1,10 @@
 /**
- * Hero 区域 - 占视口约 2/3，包含动画背景和 Slogan
+ * Hero 区域 - 占满视口，包含彩虹动画背景和 Slogan
  */
 
 import React, { useEffect, useState } from 'react'
 import { DownOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import AnimatedBackground from '../../../components/AnimatedBackground'
 import Slogan from './Slogan'
 import styles from './HeroSection.module.css'
@@ -14,6 +15,8 @@ interface HeroSectionProps {
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToPricing }) => {
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -23,12 +26,40 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToPricing }) => {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
+  // 首屏内容入场动画
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 100)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <section className={styles.hero} aria-label="品牌介绍">
-      <AnimatedBackground variant="mesh" reducedMotion={reducedMotion} />
+      <AnimatedBackground variant="rainbow" reducedMotion={reducedMotion} />
+
+      {/* 装饰性浮动元素 */}
+      <div className={`${styles.decorCircle} ${styles.decor1}`} />
+      <div className={`${styles.decorCircle} ${styles.decor2}`} />
+      <div className={`${styles.decorCircle} ${styles.decor3}`} />
 
       <div className={styles.content}>
-        <Slogan />
+        <Slogan visible={isVisible} />
+
+        <div className={`${styles.ctaRow} ${isVisible ? styles.ctaRowVisible : ''}`}>
+          <button
+            className={styles.ctaPrimary}
+            onClick={() => navigate('/login')}
+            aria-label="立即开始赚钱"
+          >
+            立即开赚
+          </button>
+          <button
+            className={styles.ctaSecondary}
+            onClick={onScrollToPricing}
+            aria-label="查看会员方案"
+          >
+            了解会员
+          </button>
+        </div>
 
         <button
           className={styles.scrollHint}
