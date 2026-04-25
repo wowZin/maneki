@@ -1,219 +1,87 @@
 /**
- * 仪表盘首页 - 科技感主题
+ * 仪表盘首页 - 数据概览看板
  */
 
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Typography, Button, Space, Badge } from 'antd'
-import {
-  StockOutlined,
-  AlertOutlined,
-  RiseOutlined,
-  FallOutlined,
-  CrownOutlined,
-  ThunderboltOutlined,
-  BarChartOutlined,
-  LineChartOutlined,
-} from '@ant-design/icons'
+import React, { useState, useEffect } from 'react'
+import { Row, Col, Typography, Space, Tooltip } from 'antd'
+import { ClockCircleOutlined } from '@ant-design/icons'
+import AccuracyTrendChart from './components/AccuracyTrendChart'
+import UserTrackingCard from './components/UserTrackingCard'
+import UserTrackingDetailModal from './components/UserTrackingDetailModal'
+import AgentPerformanceTable from './components/AgentPerformanceTable'
+import HotStocksList from './components/HotStocksList'
+import RealtimeSignals from './components/RealtimeSignals'
 
-const { Text } = Typography
-
-// 统计卡片组件
-interface StatCardProps {
-  icon: React.ReactNode
-  iconClass: string
-  value: string | number
-  label: string
-  trend?: string
-  trendUp?: boolean
-}
-
-const StatCard: React.FC<StatCardProps> = ({ icon, iconClass, value, label, trend, trendUp }) => (
-  <div className="stat-card">
-    <div className={`stat-icon ${iconClass}`}>{icon}</div>
-    <div className="stat-value">{value}</div>
-    <div className="stat-label">{label}</div>
-    {trend && (
-      <div style={{
-        marginTop: 8,
-        fontSize: 13,
-        color: trendUp ? 'var(--emerald-500)' : '#ef4444',
-        fontWeight: 500
-      }}>
-        {trendUp ? '↑' : '↓'} {trend}
-      </div>
-    )}
-  </div>
-)
+const { Title, Text } = Typography
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate()
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+
+  useEffect(() => {
+    setLastUpdated(new Date().toLocaleString('zh-CN'))
+  }, [])
+  const [detailModalVisible, setDetailModalVisible] = useState(false)
+  const [detailDate, setDetailDate] = useState<string | null>(null)
+
+  const handleViewDetail = (date: string) => {
+    setDetailDate(date)
+    setDetailModalVisible(true)
+  }
+
+  const handleCloseDetail = () => {
+    setDetailModalVisible(false)
+    setDetailDate(null)
+  }
 
   return (
     <div>
       {/* 页面标题 */}
-      <div className="page-header">
-        <h1 className="page-title">仪表盘</h1>
-        <p className="page-subtitle">实时监控您的股票信号与分析数据</p>
-      </div>
-
-      {/* 统计卡片 */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            icon={<StockOutlined />}
-            iconClass="stat-icon-blue"
-            value="128"
-            label="监控股票"
-            trend="12%"
-            trendUp={true}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            icon={<AlertOutlined />}
-            iconClass="stat-icon-cyan"
-            value="24"
-            label="今日信号"
-            trend="5 新信号"
-            trendUp={true}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            icon={<RiseOutlined />}
-            iconClass="stat-icon-green"
-            value="8"
-            label="涨停预测"
-            trend="85% 准确率"
-            trendUp={true}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            icon={<FallOutlined />}
-            iconClass="stat-icon-red"
-            value="3"
-            label="风险预警"
-            trend="需关注"
-            trendUp={false}
-          />
-        </Col>
-      </Row>
-
-      {/* 升级会员推广卡片 */}
-      <div className="promo-card" style={{ marginBottom: 32 }}>
-        <div className="promo-card-content">
-          <Row align="middle" justify="space-between">
-            <Col xs={24} md={16}>
-              <Space align="center" size="middle">
-                <div style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 16,
-                  background: 'rgba(255,255,255,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 28
-                }}
-                >
-                  <CrownOutlined />
-                </div>
-                <div>
-                  <h2 className="promo-title">升级专业版</h2>
-                  <p className="promo-text">
-                    解锁 Level-2 行情数据、AI 智能信号、涨停预测算法等高级功能
-                  </p>
-                </div>
-              </Space>
-            </Col>
-            <Col xs={24} md={8} style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button
-                className="promo-button"
-                icon={<ThunderboltOutlined />}
-                onClick={() => navigate('/pricing')}
-              >
-                立即升级
-              </Button>
-            </Col>
-          </Row>
+      <div className="page-header" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <Title level={3} style={{ marginBottom: 4 }}>数据概览</Title>
+          <Text type="secondary">实时监控平台预测能力、Agent 表现与市场信号</Text>
         </div>
+        <Tooltip title="页面加载时间">
+          <Space style={{ color: '#9ca3af', fontSize: 12 }}>
+            <ClockCircleOutlined />
+            <span>更新于 {lastUpdated}</span>
+          </Space>
+        </Tooltip>
       </div>
 
-      {/* 数据展示区域 */}
-      <Row gutter={[24, 24]}>
+      {/* 第一行：正确率趋势 + 用户追踪 */}
+      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
-          <Card
-            title={
-              <Space>
-                <ThunderboltOutlined style={{ color: '#3b82f6' }} />
-                <span>实时信号</span>
-                <Badge count="5" style={{ backgroundColor: '#3b82f6' }} />
-              </Space>
-            }
-            className="glass-card"
-            style={{ borderRadius: 16 }}
-          >
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(6,182,212,0.1))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 20px',
-                fontSize: 36,
-                color: 'var(--primary-400)'
-              }}
-              >
-                <AlertOutlined />
-              </div>
-              <Text style={{ color: 'var(--text-secondary)' }}>暂无新的交易信号</Text>
-              <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 8 }}>
-                系统正在实时监控市场数据...
-              </p>
-            </div>
-          </Card>
+          <AccuracyTrendChart />
         </Col>
-
         <Col xs={24} lg={12}>
-          <Card
-            title={
-              <Space>
-                <LineChartOutlined style={{ color: '#10b981' }} />
-                <span>热门股票</span>
-              </Space>
-            }
-            className="glass-card"
-            style={{ borderRadius: 16 }}
-          >
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.1))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 20px',
-                fontSize: 36,
-                color: 'var(--emerald-500)'
-              }}
-              >
-                <BarChartOutlined />
-              </div>
-              <Text style={{ color: 'var(--text-secondary)' }}>暂无热门股票数据</Text>
-              <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 8 }}>
-                升级会员查看实时热门榜单
-              </p>
-            </div>
-          </Card>
+          <UserTrackingCard onViewDetail={handleViewDetail} />
         </Col>
       </Row>
+
+      {/* 第二行：实时信号 + 热门股票 */}
+      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <RealtimeSignals />
+        </Col>
+        <Col xs={24} lg={12}>
+          <HotStocksList />
+        </Col>
+      </Row>
+
+      {/* 第三行：Agent 命中率 */}
+      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+        <Col xs={24}>
+          <AgentPerformanceTable />
+        </Col>
+      </Row>
+
+      {/* 明细弹窗 */}
+      <UserTrackingDetailModal
+        visible={detailModalVisible}
+        date={detailDate}
+        onClose={handleCloseDetail}
+      />
     </div>
   )
 }
