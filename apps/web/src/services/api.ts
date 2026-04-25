@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // 创建 axios 实例
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: `${API_BASE_URL}/api/v1/client`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -117,7 +117,7 @@ export const authApi = {
     formData.append('password', data.password)
 
     const response = await axios.post(
-      `${API_BASE_URL}/api/v1/auth/jwt/login`,
+      `${API_BASE_URL}/api/v1/client/auth/jwt/login`,
       formData,
       {
         headers: {

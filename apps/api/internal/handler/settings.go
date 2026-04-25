@@ -545,3 +545,160 @@ func (h *SettingsHandler) SavePricingSettings(c *gin.Context) {
 		"message": "定价配置已保存",
 	})
 }
+
+// ---------- 公开定价配置接口 ----------
+
+// PublicPriceDetail 价格详情（公开接口）
+type PublicPriceDetail struct {
+	OriginalPrice   float64 `json:"original_price"`
+	DiscountedPrice float64 `json:"discounted_price"`
+	DiscountRate    float64 `json:"discount_rate"`
+	DiscountLabel   string  `json:"discount_label"`
+	SaveAmount      float64 `json:"save_amount"`
+}
+
+// PublicMembershipPlan 会员方案（公开接口）
+type PublicMembershipPlan struct {
+	Tier       string                       `json:"tier"`
+	Name       string                       `json:"name"`
+	Description string                      `json:"description"`
+	Icon       string                       `json:"icon"`
+	Color      string                       `json:"color"`
+	Badge      string                       `json:"badge,omitempty"`
+	Features   []string                     `json:"features"`
+	Highlights []string                     `json:"highlights"`
+	Prices     map[string]PublicPriceDetail `json:"prices"`
+	IsPopular  bool                         `json:"is_popular,omitempty"`
+}
+
+// PublicCycle 计费周期（公开接口）
+type PublicCycle struct {
+	Cycle  string `json:"cycle"`
+	Label  string `json:"label"`
+	Unit   string `json:"unit"`
+	Months int    `json:"months"`
+}
+
+// PublicPricingConfigResponse 公开定价配置响应
+type PublicPricingConfigResponse struct {
+	Plans          []PublicMembershipPlan `json:"plans"`
+	Cycles         []PublicCycle          `json:"cycles"`
+	GlobalDiscount *GlobalDiscount        `json:"global_discount,omitempty"`
+}
+
+// GlobalDiscount 全局折扣
+type GlobalDiscount struct {
+	Label      string  `json:"label"`
+	Rate       float64 `json:"rate"`
+	ValidUntil string  `json:"valid_until"`
+}
+
+// buildPriceDetail 根据 PricingItem 构建公开价格详情
+func buildPriceDetail(item model.PricingItem) PublicPriceDetail {
+	discounted := item.Price * item.Discount
+	label := ""
+	if item.Discount < 1.0 {
+		label = fmt.Sprintf("%.0f折", item.Discount*10)
+	}
+	return PublicPriceDetail{
+		OriginalPrice:   item.Price,
+		DiscountedPrice: discounted,
+		DiscountRate:    item.Discount,
+		DiscountLabel:   label,
+		SaveAmount:      item.Price - discounted,
+	}
+}
+
+// GetPublicPricingConfig 获取公开定价配置（无需认证）
+func (h *SettingsHandler) GetPublicPricingConfig(c *gin.Context) {
+	settings, err := h.settingsRepo.GetPricingSettings(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    -1,
+			"message": "获取定价配置失败: " + err.Error(),
+		})
+		return
+	}
+
+	plans := []PublicMembershipPlan{
+		{
+			Tier:        "basic",
+			Name:        "免费体验",
+			Description: "基础功能，适合初次体验",
+			Icon:        "star",
+			Color:       "cyan",
+			Features: []string{
+				"每日 3 次涨停预测",
+				"基础股票监控",
+				"社区公开讨论",
+			},
+			Highlights: []string{},
+			Prices: map[string]PublicPriceDetail{
+				"monthly":   {OriginalPrice: 0, DiscountedPrice: 0, DiscountRate: 1, DiscountLabel: "", SaveAmount: 0},
+				"quarterly": {OriginalPrice: 0, DiscountedPrice: 0, DiscountRate: 1, DiscountLabel: "", SaveAmount: 0},
+				"yearly":    {OriginalPrice: 0, DiscountedPrice: 0, DiscountRate: 1, DiscountLabel: "", SaveAmount: 0},
+			},
+		},
+		{
+			Tier:        "vip",
+			Name:        "VIP 会员",
+			Description: "解锁更多高级信号",
+			Icon:        "star",
+			Color:       "blue",
+			Badge:       "最受欢迎",
+			Features: []string{
+				"每日 20 次涨停预测",
+				"高级股票监控",
+				"AI 信号解读",
+				"优先客服支持",
+			},
+			Highlights: []string{"每日 20 次预测", "AI 解读"},
+			Prices: map[string]PublicPriceDetail{
+				"monthly":   buildPriceDetail(settings.VIP.Monthly),
+				"quarterly": buildPriceDetail(settings.VIP.Quarterly),
+				"yearly":    buildPriceDetail(settings.VIP.Yearly),
+			},
+			IsPopular: true,
+		},
+		{
+			Tier:        "svip",
+			Name:        "SVIP 会员",
+			Description: "尊享全部权益",
+			Icon:        "star",
+			Color:       "purple",
+			Features: []string{
+				"无限次涨停预测",
+				"全量股票监控",
+				"AI 信号解读",
+				"专属投资顾问",
+				"实时数据推送",
+				"自定义策略回测",
+			},
+			Highlights: []string{"无限预测", "实时推送", "专属顾问"},
+			Prices: map[string]PublicPriceDetail{
+				"monthly":   buildPriceDetail(settings.SVIP.Monthly),
+				"quarterly": buildPriceDetail(settings.SVIP.Quarterly),
+				"yearly":    buildPriceDetail(settings.SVIP.Yearly),
+			},
+		},
+	}
+
+	cycles := []PublicCycle{
+		{Cycle: "monthly", Label: "月付", Unit: "/月", Months: 1},
+		{Cycle: "quarterly", Label: "季付", Unit: "/季", Months: 3},
+		{Cycle: "yearly", Label: "年付", Unit: "/年", Months: 12},
+	}
+
+	// 如果有全局折扣可在此配置，目前暂不启用
+	var globalDiscount *GlobalDiscount
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": PublicPricingConfigResponse{
+			Plans:          plans,
+			Cycles:         cycles,
+			GlobalDiscount: globalDiscount,
+		},
+	})
+}
