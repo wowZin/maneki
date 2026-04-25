@@ -158,7 +158,7 @@ services:
       - DATA_SERVICE_URL=http://data-service:8001
       - DATA_SOURCE_STRATEGY=tiered
       - INTERNAL_API_KEY=dev-internal-api-key-change-in-production
-      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,*.maneki.cn
     depends_on:
       timescaledb:
         condition: service_healthy
