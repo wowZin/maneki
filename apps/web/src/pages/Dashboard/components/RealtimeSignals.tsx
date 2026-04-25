@@ -109,7 +109,7 @@ const RealtimeSignals: React.FC = () => {
               style={{
                 padding: '12px 0',
                 borderBottom: '1px solid #f3f4f6',
-                backgroundColor: item.is_new ? 'rgba(59,130,246,0.05)' : 'transparent',
+                backgroundColor: item.is_new ? 'rgba(230,126,34,0.06)' : 'transparent',
                 transition: 'background-color 0.5s ease',
                 borderRadius: 8,
                 paddingLeft: 8,

@@ -36,7 +36,7 @@ const UserStatusBar: React.FC<UserStatusBarProps> = ({ onUpgrade }) => {
         <Avatar
           icon={<UserOutlined />}
           src={profile?.avatar_url || user?.avatar_url}
-          style={{ background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}
+          style={{ background: 'linear-gradient(135deg, #f39c12, #e67e22)' }}
         />
         <div className={styles.info}>
           <div className={styles.nameRow}>

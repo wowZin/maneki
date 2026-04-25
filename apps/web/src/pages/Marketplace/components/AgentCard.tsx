@@ -50,7 +50,8 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, rank }) => {
     <Card
       hoverable
       onClick={handleClick}
-      style={{ borderRadius: 16, cursor: 'pointer', position: 'relative' }}
+      className="glass-card"
+      style={{ cursor: 'pointer', position: 'relative' }}
       bodyStyle={{ padding: 16 }}
     >
       {agent.is_featured && (
@@ -87,8 +88,8 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, rank }) => {
           <Space size={16} style={{ marginTop: 8 }}>
             <Tooltip title="预测准确率">
               <Space size={2}>
-                <RocketOutlined style={{ color: '#3b82f6', fontSize: 12 }} />
-                <Text style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600 }}>
+                <RocketOutlined style={{ color: '#e67e22', fontSize: 12 }} />
+                <Text style={{ fontSize: 12, color: '#e67e22', fontWeight: 600 }}>
                   {agent.accuracy !== null ? `${agent.accuracy}%` : 'N/A'}
                 </Text>
               </Space>

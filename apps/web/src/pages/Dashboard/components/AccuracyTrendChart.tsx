@@ -80,15 +80,15 @@ const AccuracyTrendChart: React.FC = () => {
           smooth: true,
           symbol: 'circle',
           symbolSize: 6,
-          lineStyle: { color: '#3b82f6', width: 3 },
-          itemStyle: { color: '#3b82f6', borderColor: '#fff', borderWidth: 2 },
+          lineStyle: { color: '#e67e22', width: 3 },
+          itemStyle: { color: '#e67e22', borderColor: '#fff', borderWidth: 2 },
           areaStyle: {
             color: {
               type: 'linear',
               x: 0, y: 0, x2: 0, y2: 1,
               colorStops: [
-                { offset: 0, color: 'rgba(59,130,246,0.25)' },
-                { offset: 1, color: 'rgba(59,130,246,0.02)' },
+                { offset: 0, color: 'rgba(230,126,34,0.25)' },
+                { offset: 1, color: 'rgba(230,126,34,0.02)' },
               ],
             },
           },
@@ -119,7 +119,7 @@ const AccuracyTrendChart: React.FC = () => {
     <Card
       title={
         <Space>
-          <LineChartOutlined style={{ color: '#3b82f6' }} />
+          <LineChartOutlined style={{ color: '#e67e22' }} />
           <span>打板预测正确率趋势</span>
           {data?.overall_accuracy !== undefined && (
             <Text type="secondary" style={{ fontSize: 13, marginLeft: 8 }}>
