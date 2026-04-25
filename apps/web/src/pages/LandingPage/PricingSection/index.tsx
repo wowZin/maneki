@@ -1,11 +1,12 @@
 /**
  * LandingPage 定价区域
  * 支持月/季/年周期切换，CTA 根据认证状态跳转
+ * 使用 CSS Grid 布局，卡片更宽更舒展
  */
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Skeleton, Empty } from 'antd'
+import { Skeleton, Empty } from 'antd'
 import { CrownOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../../../stores/auth'
 import { pricingApi, MembershipPlan, PriceDetail } from '../../../services/pricing'
@@ -100,7 +101,6 @@ const PricingSection: React.FC = () => {
       observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            console.log('[PricingSection] IntersectionObserver triggered')
             setHeaderVisible(true)
             observer?.disconnect()
           }
@@ -110,11 +110,9 @@ const PricingSection: React.FC = () => {
       observer.observe(el)
     }
 
-    // 在浏览器完成布局绘制后再检查，避免获取到错误的 rect
     const raf = requestAnimationFrame(() => {
       const rect = el.getBoundingClientRect()
       const isInViewport = rect.top < window.innerHeight && rect.bottom > 0
-      console.log('[PricingSection] visibility check:', { top: rect.top, bottom: rect.bottom, height: window.innerHeight, isInViewport })
       if (isInViewport) {
         setHeaderVisible(true)
       } else {
@@ -163,13 +161,11 @@ const PricingSection: React.FC = () => {
       <section className={styles.section} aria-label="定价信息">
         <div className={styles.container}>
           <Skeleton active paragraph={{ rows: 2 }} />
-          <Row gutter={[24, 24]} style={{ marginTop: 40 }}>
+          <div className={styles.pricingGrid} style={{ marginTop: 40 }}>
             {[1, 2, 3].map((i) => (
-              <Col xs={24} md={8} key={i}>
-                <div className={styles.skeletonCard} />
-              </Col>
+              <div className={styles.skeletonCard} key={i} />
             ))}
-          </Row>
+          </div>
         </div>
       </section>
     )
@@ -219,17 +215,13 @@ const PricingSection: React.FC = () => {
           </div>
         </div>
 
-        <Row gutter={[24, 24]} justify="center" align="stretch">
+        <div className={styles.pricingGrid}>
           {plans.map((plan, idx) => {
             const priceInfo = getPriceInfo(plan)
             return (
-              <Col
-                xs={24}
-                sm={12}
-                lg={8}
+              <div
                 key={plan.tier}
                 style={{
-                  display: 'flex',
                   opacity: headerVisible ? 1 : 0,
                   transform: headerVisible ? 'translateY(0)' : 'translateY(30px)',
                   transition: `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${0.15 + idx * 0.1}s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${0.15 + idx * 0.1}s`,
@@ -245,10 +237,10 @@ const PricingSection: React.FC = () => {
                   saveLabel={getSaveLabel(plan)}
                   discountLabel={priceInfo.discount_label}
                 />
-              </Col>
+              </div>
             )
           })}
-        </Row>
+        </div>
 
         <p
           className={styles.footerNote}

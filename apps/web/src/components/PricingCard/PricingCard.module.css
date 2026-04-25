@@ -1,23 +1,24 @@
 /* ============================================
-   Pricing Card - Precision Financial Aesthetic
+   Pricing Card - Warm Financial Aesthetic
+   Refined spacing, generous proportions
    ============================================ */
 
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 460px;
+  min-height: 520px;
   height: 100%;
-  padding: 22px 20px 20px;
-  border-radius: 20px;
+  padding: 32px 28px 28px;
+  border-radius: 24px;
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.03);
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 6px 16px rgba(0, 0, 0, 0.03);
   transition:
-    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.4s ease;
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.45s ease;
   overflow: hidden;
 }
 
@@ -29,15 +30,15 @@
   right: 0;
   height: 4px;
   background: var(--tier-color, #475569);
-  opacity: 0.8;
+  opacity: 0.7;
   transition: opacity 0.3s ease;
 }
 
 .card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-8px);
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.04);
+    0 16px 48px rgba(0, 0, 0, 0.08),
+    0 6px 16px rgba(0, 0, 0, 0.04);
 }
 
 .card:hover::before {
@@ -46,11 +47,12 @@
 
 /* Popular tier */
 .popular {
-  border-color: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(217, 119, 6, 0.15);
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 10px 30px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(217, 119, 6, 0.12);
+  transform: scale(1.02);
 }
 
 .popular::before {
@@ -60,18 +62,19 @@
 }
 
 .popular:hover {
+  transform: scale(1.02) translateY(-8px);
   box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(217, 119, 6, 0.25);
+    0 20px 56px rgba(0, 0, 0, 0.1),
+    0 6px 20px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(217, 119, 6, 0.2);
 }
 
 /* Badge */
 .badge {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  padding: 4px 12px;
+  top: 20px;
+  right: 20px;
+  padding: 5px 14px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -79,7 +82,7 @@
   background: linear-gradient(135deg, #d97706, #f59e0b);
   border-radius: 20px;
   text-transform: uppercase;
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.3);
 }
 
 /* Header */
@@ -88,59 +91,59 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .icon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10px;
-  font-size: 20px;
+  margin-bottom: 14px;
+  font-size: 22px;
   color: #fff;
   background: var(--tier-color, #475569);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card:hover .icon {
-  transform: scale(1.08);
+  transform: scale(1.1);
 }
 
 .name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: #1a1a2e;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-family: 'Noto Serif SC', 'DM Sans', serif;
   letter-spacing: 0.02em;
 }
 
 .desc {
-  font-size: 12px;
+  font-size: 13px;
   color: #8a8a9a;
   line-height: 1.5;
   font-family: 'DM Sans', -apple-system, sans-serif;
-  max-width: 200px;
+  max-width: 220px;
 }
 
-/* Price Section - Fixed visual height for consistency */
+/* Price Section */
 .priceSection {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
-  margin-bottom: 12px;
+  min-height: 72px;
+  margin-bottom: 16px;
 }
 
 .priceWrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .priceMain {
@@ -152,7 +155,7 @@
 }
 
 .freePrice {
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 700;
   color: #059669;
   font-family: 'Shrikhand', 'Noto Serif SC', serif;
@@ -160,7 +163,7 @@
 }
 
 .currency {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #a0a0b0;
   font-family: 'DM Sans', sans-serif;
@@ -168,7 +171,7 @@
 }
 
 .amount {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
   color: #1a1a2e;
   font-family: 'Shrikhand', 'Noto Serif SC', serif;
@@ -178,7 +181,7 @@
 }
 
 .period {
-  font-size: 13px;
+  font-size: 14px;
   color: #a0a0b0;
   font-family: 'DM Sans', sans-serif;
   margin-left: 2px;
@@ -187,14 +190,14 @@
 .priceMeta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
-  min-height: 22px;
+  min-height: 24px;
 }
 
 .originalPrice {
-  font-size: 13px;
+  font-size: 14px;
   color: #b0b0c0;
   text-decoration: line-through;
   text-decoration-color: #d0d0dc;
@@ -202,39 +205,39 @@
 }
 
 .discountTag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #ef4444, #f97316);
   color: #fff;
   letter-spacing: 0.03em;
 }
 
 .saveTag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
   background: rgba(5, 150, 105, 0.08);
   color: #059669;
 }
 
-/* Highlights - Fixed height placeholder ensures alignment */
+/* Highlights */
 .highlights {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
   align-items: center;
-  min-height: 26px;
-  margin-bottom: 12px;
+  min-height: 28px;
+  margin-bottom: 16px;
 }
 
 .highlightTag {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 20px;
   background: var(--tier-bg, rgba(71, 85, 105, 0.08));
   color: var(--tier-color, #475569);
@@ -245,8 +248,8 @@
 .divider {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent);
-  margin-bottom: 16px;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.05), transparent);
+  margin-bottom: 20px;
 }
 
 /* Features */
@@ -254,43 +257,43 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .feature {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 10px;
+  font-size: 14px;
   color: #4a4a5a;
-  line-height: 1.5;
+  line-height: 1.55;
   font-family: 'DM Sans', -apple-system, sans-serif;
 }
 
 .featureIcon {
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--tier-color, #475569);
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* Button */
 .button {
   margin-top: auto;
   width: 100%;
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-size: 14px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  height: 48px;
   font-family: 'DM Sans', -apple-system, sans-serif;
   letter-spacing: 0.02em;
 }
@@ -298,12 +301,12 @@
 .buttonPrimary {
   color: #fff;
   background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.25);
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.28);
 }
 
 .buttonPrimary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.35);
+  box-shadow: 0 8px 28px rgba(217, 119, 6, 0.38);
 }
 
 .buttonPrimary:focus-visible {

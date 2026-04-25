@@ -1,19 +1,11 @@
 /**
- * 会员订阅页面 - 精修定价卡片
- * 使用 PricingCard 组件确保与 LandingPage 视觉一致
+ * 会员订阅页面 - 精修定价布局
+ * CSS Grid 替代 Ant Design Row/Col，卡片更宽更舒展
  */
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Button,
-  Typography,
-  Row,
-  Col,
-  Skeleton,
-  Empty,
-  message,
-} from 'antd'
+import { Skeleton, Empty, message } from 'antd'
 import {
   RocketOutlined,
   SafetyOutlined,
@@ -28,8 +20,7 @@ import {
   MembershipTier,
 } from '../../services/pricing'
 import PricingCard from '../../components/PricingCard'
-
-const { Title, Text, Paragraph } = Typography
+import styles from './Pricing.module.css'
 
 // 默认定价方案（API 异常时展示）
 const DEFAULT_PLANS: MembershipPlan[] = [
@@ -110,9 +101,7 @@ const Pricing: React.FC = () => {
     try {
       setLoading(true)
       const data = await pricingApi.getPricingConfig()
-      console.log('[Pricing] API response:', data)
       if (!data || !Array.isArray(data.plans) || !Array.isArray(data.cycles)) {
-        console.error('[Pricing] Invalid API response structure:', data)
         message.error('定价数据格式异常，使用默认配置')
         setPricingData({ plans: DEFAULT_PLANS, cycles: DEFAULT_CYCLES })
         return
@@ -122,7 +111,6 @@ const Pricing: React.FC = () => {
         setSelectedCycle(data.cycles[0].cycle)
       }
     } catch (error) {
-      console.error('[Pricing] Failed to fetch pricing config:', error)
       message.error('获取定价信息失败，使用默认配置')
       setPricingData({ plans: DEFAULT_PLANS, cycles: DEFAULT_CYCLES })
     } finally {
@@ -165,125 +153,82 @@ const Pricing: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px 20px', maxWidth: 1280, margin: '0 auto' }}>
-        <Skeleton active paragraph={{ rows: 4 }} />
-        <Row gutter={[32, 32]} style={{ marginTop: 48 }}>
-          {[1, 2, 3].map((i) => (
-            <Col xs={24} md={8} key={i}>
-              <div className="glass-card" style={{ height: 460 }} />
-            </Col>
-          ))}
-        </Row>
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <Skeleton active paragraph={{ rows: 4 }} />
+          <div className={styles.pricingGrid} style={{ marginTop: 48 }}>
+            {[1, 2, 3].map((i) => (
+              <div className={styles.skeletonCard} key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!pricingData || !Array.isArray(pricingData.plans) || pricingData.plans.length === 0) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-        <Empty description="暂无定价信息" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <Empty description="暂无定价信息" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '20px 20px 60px', maxWidth: 1280, margin: '0 auto' }}>
-      {/* 页面标题 */}
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <Title
-          level={1}
-          style={{
-            marginBottom: 16,
-            fontFamily: "'Noto Serif SC', serif",
-            fontSize: 'clamp(28px, 5vw, 40px)',
-            color: '#1a1a2e',
-            fontWeight: 700,
-            letterSpacing: '0.02em',
-          }}
-        >
-          选择适合您的方案
-        </Title>
-        <Paragraph style={{ fontSize: 16, color: '#6a6a7a', maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
-          解锁更多高级功能，获取更精准的涨停预测信号
-          <br />
-          所有付费会员均可享受 7 天无理由退款
-        </Paragraph>
-      </div>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        {/* 页面标题 */}
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>选择适合您的方案</h1>
+          <p className={styles.pageSubtitle}>
+            解锁更多高级功能，获取更精准的涨停预测信号
+            <br />
+            所有付费会员均可享受 7 天无理由退款
+          </p>
+        </div>
 
-      {/* 全局折扣提示 */}
-      {pricingData.global_discount && (
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '14px 28px',
-              borderRadius: 50,
-              background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              boxShadow: '0 4px 20px rgba(245, 158, 11, 0.2)',
-            }}
-          >
-            <span style={{ fontSize: 24 }}>🎉</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#92400e' }}>
+        {/* 全局折扣提示 */}
+        {pricingData.global_discount && (
+          <div className={styles.discountBanner}>
+            <span className={styles.discountEmoji}>🎉</span>
+            <span className={styles.discountLabel}>
               {pricingData.global_discount.label} 限时优惠中
             </span>
-            <span style={{ fontSize: 13, color: '#a16207' }}>
+            <span className={styles.discountDate}>
               截止 {new Date(pricingData.global_discount.valid_until).toLocaleDateString()}
             </span>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 计费周期切换 */}
-      {pricingData.cycles && pricingData.cycles.length > 0 && (
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'rgba(0,0,0,0.03)',
-              borderRadius: 12,
-              padding: 4,
-            }}
-          >
-            {pricingData.cycles.map((cycle) => {
-              const isSelected = selectedCycle === cycle.cycle
-              return (
-                <button
-                  key={cycle.cycle}
-                  onClick={() => setSelectedCycle(cycle.cycle)}
-                  style={{
-                    padding: '10px 24px',
-                    borderRadius: 10,
-                    border: 'none',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: "'DM Sans', sans-serif",
-                    background: isSelected ? '#fff' : 'transparent',
-                    color: isSelected ? '#1a1a2e' : '#8a8a9a',
-                    boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                    transition: 'all 0.3s ease',
-                  }}
-                >
-                  {cycle.label}
-                </button>
-              )
-            })}
+        {/* 计费周期切换 */}
+        {pricingData.cycles && pricingData.cycles.length > 0 && (
+          <div className={styles.cycleToggleWrap}>
+            <div className={styles.cycleToggle}>
+              {pricingData.cycles.map((cycle) => {
+                const isSelected = selectedCycle === cycle.cycle
+                return (
+                  <button
+                    key={cycle.cycle}
+                    className={`${styles.cycleBtn} ${isSelected ? styles.cycleBtnActive : ''}`}
+                    onClick={() => setSelectedCycle(cycle.cycle)}
+                  >
+                    {cycle.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 价格卡片 */}
-      <Row gutter={[24, 24]} justify="center" align="stretch">
-        {pricingData.plans.filter((p) => p && p.tier).map((plan) => {
-          const priceInfo = getPriceInfo(plan)
-          return (
-            <Col xs={24} md={8} key={plan.tier} style={{ display: 'flex' }}>
+        {/* 价格卡片 */}
+        <div className={styles.pricingGrid}>
+          {pricingData.plans.filter((p) => p && p.tier).map((plan) => {
+            const priceInfo = getPriceInfo(plan)
+            return (
               <PricingCard
+                key={plan.tier}
                 plan={plan}
                 onCTAClick={() => handleSubscribe(plan.tier)}
                 ctaText={plan.tier === 'basic' ? '免费使用' : '立即订阅'}
@@ -294,92 +239,42 @@ const Pricing: React.FC = () => {
                 discountLabel={priceInfo.discount_label}
                 loading={subscribing === plan.tier}
               />
-            </Col>
-          )
-        })}
-      </Row>
-
-      {/* 底部说明 */}
-      <div style={{ marginTop: 80 }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Title
-            level={3}
-            style={{
-              fontFamily: "'Noto Serif SC', serif",
-              fontSize: 24,
-              color: '#1a1a2e',
-              fontWeight: 700,
-            }}
-          >
-            常见问题
-          </Title>
+            )
+          })}
         </div>
 
-        <Row gutter={[24, 24]} justify="center">
-          <Col xs={24} md={8}>
-            <div style={{ padding: 24, textAlign: 'center', borderRadius: 16, background: '#f8f8fa', border: '1px solid rgba(0,0,0,0.04)' }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(5,150,105,0.12), rgba(5,150,105,0.2))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', fontSize: 24, color: '#059669'
-              }}>
+        {/* 底部 FAQ */}
+        <div className={styles.faqSection}>
+          <h3 className={styles.faqTitle}>常见问题</h3>
+          <div className={styles.faqGrid}>
+            <div className={styles.faqCard}>
+              <div className={styles.faqIcon} style={{ background: 'rgba(5,150,105,0.1)', color: '#059669' }}>
                 <SafetyOutlined />
               </div>
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 16, color: '#1a1a2e' }}>
-                安全支付
-              </Text>
-              <Text style={{ color: '#6a6a7a', fontSize: 14 }}>
-                支持支付宝、微信支付，银行级安全加密
-              </Text>
+              <div className={styles.faqCardTitle}>安全支付</div>
+              <div className={styles.faqCardDesc}>支持支付宝、微信支付，银行级安全加密</div>
             </div>
-          </Col>
-          <Col xs={24} md={8}>
-            <div style={{ padding: 24, textAlign: 'center', borderRadius: 16, background: '#f8f8fa', border: '1px solid rgba(0,0,0,0.04)' }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.2))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', fontSize: 24, color: '#3b82f6'
-              }}>
+            <div className={styles.faqCard}>
+              <div className={styles.faqIcon} style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
                 <RocketOutlined />
               </div>
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 16, color: '#1a1a2e' }}>
-                7天无理由退款
-              </Text>
-              <Text style={{ color: '#6a6a7a', fontSize: 14 }}>
-                购买后7天内不满意可申请全额退款
-              </Text>
+              <div className={styles.faqCardTitle}>7天无理由退款</div>
+              <div className={styles.faqCardDesc}>购买后7天内不满意可申请全额退款</div>
             </div>
-          </Col>
-          <Col xs={24} md={8}>
-            <div style={{ padding: 24, textAlign: 'center', borderRadius: 16, background: '#f8f8fa', border: '1px solid rgba(0,0,0,0.04)' }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.2))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', fontSize: 24, color: '#7c3aed'
-              }}>
+            <div className={styles.faqCard}>
+              <div className={styles.faqIcon} style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
                 <SyncOutlined />
               </div>
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 16, color: '#1a1a2e' }}>
-                灵活升级
-              </Text>
-              <Text style={{ color: '#6a6a7a', fontSize: 14 }}>
-                随时升级或降级会员，按比例计算差价
-              </Text>
+              <div className={styles.faqCardTitle}>灵活升级</div>
+              <div className={styles.faqCardDesc}>随时升级或降级会员，按比例计算差价</div>
             </div>
-          </Col>
-        </Row>
+          </div>
+        </div>
 
-        <div style={{ textAlign: 'center', marginTop: 48 }}>
-          <Paragraph style={{ color: '#6a6a7a' }}>
-            企业用户或需要定制服务？
-            <Button type="link" style={{ fontWeight: 600, color: '#3b82f6' }}>联系商务</Button>
-          </Paragraph>
-          <Text style={{ fontSize: 12, color: '#9a9aaa' }}>
-            最终解释权归 Maneki 所有 | 价格如有调整，以支付页面为准
-          </Text>
+        {/* 底部说明 */}
+        <div className={styles.footer}>
+          <p>企业用户或需要定制服务？<a href="#" className={styles.footerLink}>联系商务</a></p>
+          <p className={styles.footerLegal}>最终解释权归 Maneki 所有 | 价格如有调整，以支付页面为准</p>
         </div>
       </div>
     </div>
