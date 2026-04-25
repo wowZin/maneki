@@ -23,6 +23,7 @@ import {
   LogoutOutlined,
   SettingOutlined,
   MenuUnfoldOutlined,
+  ShopOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/auth'
 
@@ -100,6 +101,11 @@ const Layout: React.FC = () => {
       key: '/stocks',
       icon: <StockOutlined />,
       label: <Link to="/stocks">股票监控</Link>,
+    },
+    {
+      key: '/marketplace',
+      icon: <ShopOutlined />,
+      label: <Link to="/marketplace">Agent 市场</Link>,
     },
     {
       key: '/signals',

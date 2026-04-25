@@ -20,6 +20,9 @@ import Pricing from './pages/Pricing'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import LandingPage from './pages/LandingPage'
+import Marketplace from './pages/Marketplace'
+import AgentDetail from './pages/AgentDetail'
+import AgentCreate from './pages/AgentCreate'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useAuthStore } from './stores/auth'
 
@@ -81,6 +84,9 @@ const App: React.FC = () => {
             <Route path="stocks" element={<div>股票监控（开发中）</div>} />
             <Route path="signals" element={<div>信号中心（开发中）</div>} />
             <Route path="replay" element={<div>回测分析（开发中）</div>} />
+            <Route path="marketplace" element={<Marketplace />} />
+            <Route path="marketplace/agents/:id" element={<AgentDetail />} />
+            <Route path="marketplace/agents/create" element={<AgentCreate />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
           </Route>
