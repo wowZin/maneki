@@ -1,0 +1,143 @@
+.hero {
+  position: relative;
+  height: 66vh;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 0 24px;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+/* Slogan 样式 */
+.sloganContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.mainTitle {
+  margin: 0;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.titleLine {
+  display: block;
+}
+
+.highlight {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subTitle {
+  margin: 0;
+  font-size: clamp(16px, 2vw, 22px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 560px;
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.badge {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+/* 向下滚动提示 */
+.scrollHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.scrollHint:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(2px);
+}
+
+.scrollHint:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 3px;
+}
+
+.chevron {
+  font-size: 16px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* 减少动态效果 */
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    animation: none;
+  }
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .hero {
+    min-height: 420px;
+    height: 60vh;
+  }
+
+  .content {
+    gap: 32px;
+  }
+
+  .badgeRow {
+    gap: 8px;
+  }
+
+  .badge {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+}

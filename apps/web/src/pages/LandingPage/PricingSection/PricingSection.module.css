@@ -1,0 +1,60 @@
+.section {
+  position: relative;
+  padding: 80px 24px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.iconWrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.25));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 24px;
+  color: #f59e0b;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 3.5vw, 36px);
+  font-weight: 700;
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.skeletonCard {
+  height: 480px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footerNote {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}

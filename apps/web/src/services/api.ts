@@ -6,11 +6,12 @@ import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../stores/auth'
 
 // API 基础配置
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// 开发环境留空走 Vite 代理（避免跨域），生产环境通过构建注入完整 URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // 创建 axios 实例
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: `${API_BASE_URL}/api/v1/client`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -117,7 +118,7 @@ export const authApi = {
     formData.append('password', data.password)
 
     const response = await axios.post(
-      `${API_BASE_URL}/api/v1/auth/jwt/login`,
+      `${API_BASE_URL}/api/v1/client/auth/jwt/login`,
       formData,
       {
         headers: {

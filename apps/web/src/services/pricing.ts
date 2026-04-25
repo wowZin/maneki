@@ -84,7 +84,7 @@ export const pricingApi = {
    */
   getPricingConfig: async (): Promise<PricingConfigResponse> => {
     const response = await api.get('/pricing/config')
-    return response.data
+    return response.data.data
   },
 
   /**

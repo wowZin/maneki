@@ -46,10 +46,18 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 		if a == "*" || strings.EqualFold(a, origin) {
 			return true
 		}
-		// 支持通配符子域名
+		// 支持通配符子域名（兼容带端口的 origin，如 http://dev.maneki.cn:5173）
 		if strings.HasPrefix(a, "*.") {
 			suffix := a[1:] // .example.com
-			if strings.HasSuffix(origin, suffix) {
+			// 从 origin 中提取纯域名（去掉协议和端口）
+			host := origin
+			if idx := strings.Index(host, "://"); idx != -1 {
+				host = host[idx+3:]
+			}
+			if idx := strings.Index(host, ":"); idx != -1 {
+				host = host[:idx]
+			}
+			if strings.HasSuffix(host, suffix) {
 				return true
 			}
 		}

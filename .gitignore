@@ -68,6 +68,11 @@ build/
 data/
 volumes/
 
+# Go binaries
+/apps/api/main
+/apps/api/tmp/
+*.exe
+
 # Misc
 .cache/
 .temp/

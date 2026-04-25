@@ -129,63 +129,71 @@ func main() {
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
-		// 公开路由 - 用户端
-		v1.POST("/auth/register", authHandler.Register)
-		v1.POST("/auth/login", authHandler.Login)
-		v1.POST("/auth/refresh", authHandler.RefreshToken)
-
-		// 手机号登录（号码认证 + 短信验证码）
-		v1.POST("/auth/phone/token", authHandler.GetPhoneAuthToken)
-		v1.POST("/auth/phone/verify", authHandler.VerifyPhoneLogin)
-		v1.POST("/auth/phone/send-code", authHandler.SendPhoneCode)
-		v1.POST("/auth/phone/login-by-code", authHandler.LoginByPhoneCode)
-
-		// 公开路由 - 管理后台
-		v1.POST("/admin/auth/login", adminAuthHandler.AdminLogin)
-
-		// Agent公开路由
-		v1.GET("/agents", agentHandler.ListAgents)
-		v1.GET("/agents/featured", agentHandler.ListFeaturedAgents)
-		v1.GET("/agents/:id", agentHandler.GetAgent)
-
-		// 股票公开路由
-		v1.GET("/stocks/:code/kline", stockHandler.GetKLine)
-		v1.GET("/stocks/quotes", stockHandler.GetRealtimeQuote)
-
-		// 用户等级字典（公开，供前后端共享）
-		v1.GET("/user-levels", userHandler.ListUserLevels)
-
-		// 需要认证的路由
-		auth := v1.Group("/")
-		auth.Use(middleware.AuthMiddleware(cfg))
+		// ========== 用户端路由 (/client) ==========
+		client := v1.Group("/client")
 		{
-			// 用户相关
-			auth.GET("/auth/me", authHandler.GetMe)
-			auth.POST("/auth/logout", authHandler.Logout)
+			// 公开路由 - 认证
+			client.POST("/auth/register", authHandler.Register)
+			client.POST("/auth/login", authHandler.Login)
+			client.POST("/auth/refresh", authHandler.RefreshToken)
 
-			// 用户端个人信息
-			auth.GET("/users/me", userHandler.GetMeProfile)
-			auth.PUT("/users/me", userHandler.UpdateMe)
-			auth.POST("/users/me/avatar", userHandler.UploadAvatar)
-			auth.POST("/users/me/password", userHandler.ChangePassword)
-			auth.GET("/users/me/rebate", userHandler.GetMyRebate)
+			// 手机号登录（号码认证 + 短信验证码）
+			client.POST("/auth/phone/token", authHandler.GetPhoneAuthToken)
+			client.POST("/auth/phone/verify", authHandler.VerifyPhoneLogin)
+			client.POST("/auth/phone/send-code", authHandler.SendPhoneCode)
+			client.POST("/auth/phone/login-by-code", authHandler.LoginByPhoneCode)
 
-			// Agent管理
-			auth.POST("/agents", agentHandler.CreateAgent)
-			auth.PUT("/agents/:id", agentHandler.UpdateAgent)
-			auth.DELETE("/agents/:id", agentHandler.DeleteAgent)
+			// Agent公开路由
+			client.GET("/agents", agentHandler.ListAgents)
+			client.GET("/agents/featured", agentHandler.ListFeaturedAgents)
+			client.GET("/agents/:id", agentHandler.GetAgent)
 
-			// Agent权重
-			auth.GET("/agents/weights/my", agentHandler.GetMyAgentWeights)
-			auth.PUT("/agents/:id/weight", agentHandler.UpdateAgentWeight)
+			// 股票公开路由
+			client.GET("/stocks/:code/kline", stockHandler.GetKLine)
+			client.GET("/stocks/quotes", stockHandler.GetRealtimeQuote)
 
-			// 订阅管理
-			auth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
+			// 用户等级字典（公开，供前后端共享）
+			client.GET("/user-levels", userHandler.ListUserLevels)
 
-			// 系统通知（用户端）
-			auth.GET("/notifications", sysNotificationHandler.ListUser)
-			auth.GET("/notifications/:id", sysNotificationHandler.GetUser)
+			// 公开定价配置（LandingPage / PricingPage 展示用）
+			client.GET("/pricing/config", settingsHandler.GetPublicPricingConfig)
+
+			// 需要认证的路由
+			clientAuth := client.Group("/")
+			clientAuth.Use(middleware.AuthMiddleware(cfg))
+			{
+				// 用户相关
+				clientAuth.GET("/auth/me", authHandler.GetMe)
+				clientAuth.POST("/auth/logout", authHandler.Logout)
+
+				// 用户端个人信息
+				clientAuth.GET("/users/me", userHandler.GetMeProfile)
+				clientAuth.PUT("/users/me", userHandler.UpdateMe)
+				clientAuth.POST("/users/me/avatar", userHandler.UploadAvatar)
+				clientAuth.POST("/users/me/password", userHandler.ChangePassword)
+				clientAuth.GET("/users/me/rebate", userHandler.GetMyRebate)
+
+				// Agent管理
+				clientAuth.POST("/agents", agentHandler.CreateAgent)
+				clientAuth.PUT("/agents/:id", agentHandler.UpdateAgent)
+				clientAuth.DELETE("/agents/:id", agentHandler.DeleteAgent)
+
+				// Agent权重
+				clientAuth.GET("/agents/weights/my", agentHandler.GetMyAgentWeights)
+				clientAuth.PUT("/agents/:id/weight", agentHandler.UpdateAgentWeight)
+
+				// 订阅管理
+				clientAuth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
+
+				// 系统通知（用户端）
+				clientAuth.GET("/notifications", sysNotificationHandler.ListUser)
+				clientAuth.GET("/notifications/:id", sysNotificationHandler.GetUser)
+			}
 		}
+
+		// ========== 管理后台路由 (/admin) ==========
+		// 管理后台公开路由
+		v1.POST("/admin/auth/login", adminAuthHandler.AdminLogin)
 
 		// 管理后台认证路由
 		adminAuth := v1.Group("/admin/auth")

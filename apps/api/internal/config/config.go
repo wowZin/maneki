@@ -221,7 +221,7 @@ func (r RedisConfig) Addr() string {
 
 // CORSOrigins 返回CORS允许的源
 func (c Config) CORSOrigins() []string {
-	origins := getEnv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+	origins := getEnv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://app.maneki.cn:5173,http://admin.maneki.cn:5175")
 	return strings.Split(origins, ",")
 }
 
