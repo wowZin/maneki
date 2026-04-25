@@ -65,6 +65,7 @@ func main() {
 	rebateRecordRepo := repository.NewRebateRecordRepository(db)
 	antiArbitrageRepo := repository.NewAntiArbitrageRuleRepository(db)
 	rebateAuditLogRepo := repository.NewRebateAuditLogRepository(db)
+	overviewRepo := repository.NewOverviewRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -78,6 +79,7 @@ func main() {
 	rebateRecordSvc := service.NewRebateRecordService(rebateRecordRepo, rebateRuleRepo, antiArbitrageRepo, rebateAuditLogRepo, redisClient)
 	antiArbitrageSvc := service.NewAntiArbitrageService(antiArbitrageRepo)
 	rebateStatsSvc := service.NewRebateStatsService(rebateRecordRepo)
+	overviewSvc := service.NewOverviewService(overviewRepo, redisClient)
 
 	// 初始化短信/号码认证服务
 	smsSvc, err := service.NewSMSService(&cfg.SMS, redisClient)
@@ -103,6 +105,7 @@ func main() {
 	antiArbitrageHandler := handler.NewAntiArbitrageHandler(antiArbitrageSvc)
 	rebateStatsHandler := handler.NewRebateStatsHandler(rebateStatsSvc)
 	pricingHandler := handler.NewPricingHandler()
+	overviewHandler := handler.NewOverviewHandler(overviewSvc)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -160,6 +163,12 @@ func main() {
 		// 定价配置（公开）
 		v1.GET("/pricing/config", pricingHandler.GetPricingConfig)
 
+		// 首页概览公开路由
+		v1.GET("/overview/accuracy-trend", overviewHandler.GetAccuracyTrend)
+		v1.GET("/overview/agent-performance", overviewHandler.GetAgentPerformance)
+		v1.GET("/overview/hot-stocks", overviewHandler.GetHotStocks)
+		v1.GET("/overview/realtime-signals", overviewHandler.GetRealtimeSignals)
+
 		// 需要认证的路由
 		auth := v1.Group("/")
 		auth.Use(middleware.AuthMiddleware(cfg))
@@ -174,6 +183,10 @@ func main() {
 			auth.POST("/users/me/avatar", userHandler.UploadAvatar)
 			auth.POST("/users/me/password", userHandler.ChangePassword)
 			auth.GET("/users/me/rebate", userHandler.GetMyRebate)
+
+			// 首页概览 — 用户个性化数据（需认证）
+			auth.GET("/overview/user-tracking-trend", overviewHandler.GetUserTrackingTrend)
+			auth.GET("/overview/user-tracking-detail", overviewHandler.GetUserTrackingDetail)
 
 			// Agent管理
 			auth.POST("/agents", agentHandler.CreateAgent)
@@ -414,6 +427,9 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.SystemNotification{},
 		&model.RebateRule{},
 		&model.IncentiveRule{},
+		&model.UserStockTracking{},
+		&model.AgentPerformanceSnapshot{},
+		&model.HotStock{},
 		&model.RebateRecord{},
 		&model.AntiArbitrageRule{},
 		&model.RebateAuditLog{},
