@@ -91,6 +91,18 @@ func VIPAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+// SVIPAuthMiddleware 超级VIP权限中间件
+func SVIPAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		vipLevel, exists := c.Get("vip_level")
+		if !exists || vipLevel.(int) < 2 {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "svip access required"})
+			return
+		}
+		c.Next()
+	}
+}
+
 // GenerateToken 生成JWT token
 func GenerateToken(user *model.User, secret string, expire time.Duration) (string, error) {
 	now := time.Now()

@@ -80,6 +80,7 @@ func main() {
 	antiArbitrageSvc := service.NewAntiArbitrageService(antiArbitrageRepo)
 	rebateStatsSvc := service.NewRebateStatsService(rebateRecordRepo)
 	overviewSvc := service.NewOverviewService(overviewRepo, redisClient)
+	marketplaceSvc := service.NewMarketplaceService(agentRepo, subscriptionRepo, userRepo)
 
 	// 初始化短信/号码认证服务
 	smsSvc, err := service.NewSMSService(&cfg.SMS, redisClient)
@@ -92,7 +93,7 @@ func main() {
 	adminAuthHandler := handler.NewAdminAuthHandler(adminAuthSvc, auditSvc)
 	adminMgmtHandler := handler.NewAdminMgmtHandler(adminSvc, auditSvc)
 	auditHandler := handler.NewAuditHandler(auditSvc)
-	agentHandler := handler.NewAgentHandler(agentRepo, weightRepo, subscriptionRepo)
+	agentHandler := handler.NewAgentHandler(agentRepo, weightRepo, subscriptionRepo, marketplaceSvc)
 	stockHandler := handler.NewStockHandler(dataProvider)
 	datasourceHandler := handler.NewDatasourceHandler(cfg, newsRepo, topListRepo, topInstRepo, hotMoneyRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
@@ -153,6 +154,9 @@ func main() {
 		v1.GET("/agents/featured", agentHandler.ListFeaturedAgents)
 		v1.GET("/agents/:id", agentHandler.GetAgent)
 
+		// Marketplace公开路由
+		v1.GET("/marketplace/agents", agentHandler.GetMarketplaceAgents)
+		v1.GET("/marketplace/agents/:id", agentHandler.GetMarketplaceAgentDetail)
 		// 股票公开路由
 		v1.GET("/stocks/:code/kline", stockHandler.GetKLine)
 		v1.GET("/stocks/quotes", stockHandler.GetRealtimeQuote)
@@ -200,6 +204,10 @@ func main() {
 			// 订阅管理
 			auth.GET("/subscriptions/my", agentHandler.ListMySubscriptions)
 
+			// Marketplace认证路由
+			auth.POST("/marketplace/agents/:id/subscribe", agentHandler.SubscribeAgent)
+			auth.GET("/marketplace/my-subscriptions", agentHandler.GetMySubscriptions)
+			auth.POST("/marketplace/agents", middleware.SVIPAuthMiddleware(), agentHandler.CreateMarketplaceAgent)
 			// 系统通知（用户端）
 			auth.GET("/notifications", sysNotificationHandler.ListUser)
 			auth.GET("/notifications/:id", sysNotificationHandler.GetUser)

@@ -113,6 +113,79 @@ func (r *AgentRepository) ListFeatured(ctx context.Context) ([]*model.Agent, err
 	return agents, err
 }
 
+// ListWithSorting 获取Agent列表（支持排序、筛选、分页）
+func (r *AgentRepository) ListWithSorting(ctx context.Context, filters map[string]interface{}, sortBy, sortOrder string, page, pageSize int) ([]*model.Agent, int64, error) {
+	var agents []*model.Agent
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&model.Agent{}).Where("is_active = ?", true)
+
+	// 应用过滤条件
+	if agentType, ok := filters["type"].(string); ok && agentType != "" {
+		query = query.Where("type = ?", agentType)
+	}
+	if category, ok := filters["category"].(string); ok && category != "" {
+		query = query.Where("category = ?", category)
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 排序
+	orderClause := sortBy + " " + sortOrder
+	if sortBy == "accuracy" {
+		// 准确率排序需要在查询后处理（因为来自快照表）
+		orderClause = "created_at DESC"
+	}
+	if sortBy == "created_at" {
+		orderClause = "created_at " + sortOrder
+	} else if sortBy == "use_count" {
+		orderClause = "use_count " + sortOrder
+	} else if sortBy == "rating" {
+		orderClause = "rating " + sortOrder
+	}
+
+	offset := (page - 1) * pageSize
+	err = query.Preload("Owner").Order(orderClause).Offset(offset).Limit(pageSize).Find(&agents).Error
+	return agents, total, err
+}
+
+// GetByIDWithOwner 根据ID获取Agent并关联Owner信息
+func (r *AgentRepository) GetByIDWithOwner(ctx context.Context, id uint) (*model.Agent, error) {
+	var agent model.Agent
+	err := r.db.WithContext(ctx).Preload("Owner").First(&agent, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &agent, nil
+}
+
+// GetAccuracyByAgentID 获取Agent最新命中率（30天周期）
+func (r *AgentRepository) GetAccuracyByAgentID(ctx context.Context, agentID uint) (hitRate *float64, totalPredictions, hitCount int, err error) {
+	type result struct {
+		HitRate          *float64 `gorm:"column:hit_rate"`
+		TotalPredictions int      `gorm:"column:total_predictions"`
+		HitCount         int      `gorm:"column:hit_count"`
+	}
+	var res result
+	err = r.db.WithContext(ctx).Raw(`
+		SELECT hit_rate, total_predictions, hit_count
+		FROM agent_performance_snapshots
+		WHERE agent_id = ? AND period_type = '30d'
+		ORDER BY calculated_at DESC
+		LIMIT 1
+	`, agentID).Scan(&res).Error
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	return res.HitRate, res.TotalPredictions, res.HitCount, nil
+}
+
 // Update 更新Agent
 func (r *AgentRepository) Update(ctx context.Context, agent *model.Agent) error {
 	return r.db.WithContext(ctx).Save(agent).Error
@@ -195,6 +268,31 @@ func (r *AgentSubscriptionRepository) UpdateStatus(ctx context.Context, id uint,
 		Model(&model.AgentSubscription{}).
 		Where("id = ?", id).
 		Update("status", status).Error
+}
+
+// GetUserSubscription 获取指定用户对指定Agent的订阅
+func (r *AgentSubscriptionRepository) GetUserSubscription(ctx context.Context, userID uuid.UUID, agentID uint) (*model.AgentSubscription, error) {
+	var sub model.AgentSubscription
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND agent_id = ?", userID, agentID).
+		First(&sub).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &sub, nil
+}
+
+// CheckExistingSubscription 检查用户是否已有有效订阅
+func (r *AgentSubscriptionRepository) CheckExistingSubscription(ctx context.Context, userID uuid.UUID, agentID uint) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.AgentSubscription{}).
+		Where("user_id = ? AND agent_id = ? AND status = ?", userID, agentID, "active").
+		Count(&count).Error
+	return count > 0, err
 }
 
 // GetPendingSettlements 获取待结算的订阅

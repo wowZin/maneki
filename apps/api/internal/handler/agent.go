@@ -8,13 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/maneki/api/internal/model"
 	"github.com/maneki/api/internal/repository"
+	"github.com/maneki/api/internal/service"
 )
 
 // AgentHandler Agent处理器
 type AgentHandler struct {
-	agentRepo       *repository.AgentRepository
-	weightRepo      *repository.AgentWeightRepository
+	agentRepo        *repository.AgentRepository
+	weightRepo       *repository.AgentWeightRepository
 	subscriptionRepo *repository.AgentSubscriptionRepository
+	marketplaceSvc   *service.MarketplaceService
 }
 
 // NewAgentHandler 创建Agent处理器
@@ -22,11 +24,13 @@ func NewAgentHandler(
 	agentRepo *repository.AgentRepository,
 	weightRepo *repository.AgentWeightRepository,
 	subscriptionRepo *repository.AgentSubscriptionRepository,
+	marketplaceSvc *service.MarketplaceService,
 ) *AgentHandler {
 	return &AgentHandler{
 		agentRepo:        agentRepo,
 		weightRepo:       weightRepo,
 		subscriptionRepo: subscriptionRepo,
+		marketplaceSvc:   marketplaceSvc,
 	}
 }
 
@@ -450,6 +454,199 @@ func (h *AgentHandler) ListAgentsAdmin(c *gin.Context) {
 		"page":  req.Page,
 		"size":  req.PageSize,
 	})
+}
+
+// ============================================
+// Marketplace 端点
+// ============================================
+
+// GetMarketplaceAgents 获取市场Agent列表
+func (h *AgentHandler) GetMarketplaceAgents(c *gin.Context) {
+	var req struct {
+		SortBy    string `form:"sort_by,default=use_count"`
+		SortOrder string `form:"sort_order,default=desc"`
+		Type      string `form:"type"`
+		Category  string `form:"category"`
+		Page      int    `form:"page,default=1"`
+		PageSize  int    `form:"page_size,default=20"`
+	}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	filters := make(map[string]interface{})
+	if req.Type != "" {
+		filters["type"] = req.Type
+	}
+	if req.Category != "" {
+		filters["category"] = req.Category
+	}
+
+	result, err := h.marketplaceSvc.GetMarketplaceList(c.Request.Context(), filters, req.SortBy, req.SortOrder, req.Page, req.PageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetMarketplaceAgentDetail 获取市场Agent详情
+func (h *AgentHandler) GetMarketplaceAgentDetail(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agent id"})
+		return
+	}
+
+	var currentUserID *uuid.UUID
+	if userIDStr, exists := c.Get("user_id"); exists {
+		uid, err := uuid.Parse(userIDStr.(string))
+		if err == nil {
+			currentUserID = &uid
+		}
+	}
+
+	result, err := h.marketplaceSvc.GetAgentDetail(c.Request.Context(), uint(id), currentUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if result == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// SubscribeAgent 订阅Agent
+func (h *AgentHandler) SubscribeAgent(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	uid, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agent id"})
+		return
+	}
+
+	result, err := h.marketplaceSvc.SubscribeAgent(c.Request.Context(), uid, uint(agentID))
+	if err != nil {
+		if err.Error() == "agent not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "already subscribed" {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "vip required for free subscription" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "upgrade_url": "/pricing"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetMySubscriptions 获取我的订阅列表
+func (h *AgentHandler) GetMySubscriptions(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	uid, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req struct {
+		Status   string `form:"status,default=active"`
+		Page     int    `form:"page,default=1"`
+		PageSize int    `form:"page_size,default=20"`
+	}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.marketplaceSvc.GetMySubscriptions(c.Request.Context(), uid, req.Status, req.Page, req.PageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// CreateMarketplaceAgentRequest 创建Agent请求（市场端）
+type CreateMarketplaceAgentRequest struct {
+	Name        string     `json:"name" binding:"required,max=30"`
+	Description string     `json:"description" binding:"max=300"`
+	Type        string     `json:"type" binding:"required,max=30"`
+	Category    string     `json:"category"`
+	Model       string     `json:"model"`
+	Prompt      string     `json:"prompt"`
+	Price       float64    `json:"price"`
+	PriceType   string     `json:"price_type"`
+}
+
+// CreateMarketplaceAgent 创建Agent（SVIP）
+func (h *AgentHandler) CreateMarketplaceAgent(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	uid, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req CreateMarketplaceAgentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	agent, err := h.marketplaceSvc.CreateMarketplaceAgent(c.Request.Context(), uid, &service.CreateMarketplaceAgentRequest{
+		Name:        req.Name,
+		Description: req.Description,
+		Type:        req.Type,
+		Category:    req.Category,
+		Model:       req.Model,
+		Prompt:      req.Prompt,
+		Price:       req.Price,
+		PriceType:   req.PriceType,
+	})
+	if err != nil {
+		if err.Error() == "agent name already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, agentToResponse(agent))
 }
 
 // SetFeatured 设置Agent为精选（管理员）
