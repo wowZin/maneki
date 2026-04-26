@@ -7,10 +7,8 @@ import { create } from 'zustand'
 
 interface User {
   id: string
-  email: string
-  username: string
-  nickname?: string
-  phone?: string
+  nickname: string
+  phone: string
   avatar_url?: string
   vip_level?: number
   vip_tier?: string

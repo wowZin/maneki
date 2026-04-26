@@ -1,31 +1,29 @@
-# Implementation Plan: 用户短信验证码登录
+# Implementation Plan: 用户短信验证码登录与密码登录
 
-**Branch**: `007-user-sms-login` | **Date**: 2026-04-25 | **Spec**: [spec.md](./spec.md)
+**Branch**: `007-user-sms-login` | **Date**: 2026-04-25 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/007-user-sms-login/spec.md`
 
 ## Summary
 
-007 是 Maneki 用户系统的基础 feature，提供完整的用户认证能力。当前已实现：
-- 后端：手机号验证码登录/注册、账号密码登录、JWT 认证、微信登录、号码认证一键登录
-- 前端：Tab 切换的登录页（密码/手机号）、独立注册页
-
-基于 spec 澄清，需要补充：**忘记密码页面**、**注册表单增加手机号字段**、**"记住我"功能**。
+重构用户认证体系，实现双登录方式（短信验证码 + 密码），简化注册流程（去掉邮箱，仅保留名称/昵称、手机号、密码），并将手机号和昵称设为唯一标识。保留现有短信验证码登录的自动注册能力，同时新增显式注册页面和密码登录支持。
 
 ## Technical Context
 
-**Language/Version**: Go 1.23 (backend), React 18 + TypeScript (frontend)
-**Primary Dependencies**: Gin, GORM, go-redis, golang-jwt (backend); React, Vite, Ant Design, Zustand, Axios (frontend)
-**Storage**: PostgreSQL (users, admins tables), Redis (verification codes: 5min TTL, sessions)
-**Testing**: Go testing / testify (backend), Vitest (frontend)
-**Target Platform**: Web browser (desktop + mobile)
-**Project Type**: web-service (backend) + web-app (frontend)
-**Performance Goals**: Login endpoint p95 < 200ms; 1000 concurrent login req/s
-**Constraints**: JWT access token 2h / refresh token 7d; CORS support for *.maneki.cn; SMS rate limit 60s per phone
-**Scale/Scope**: 10k concurrent users
+**Language/Version**: Go 1.23, TypeScript 5.3  
+**Primary Dependencies**: Gin 1.9, GORM 1.25, React 18, Vite 5, Redis 9, JWT v5, bcrypt  
+**Storage**: PostgreSQL 15+ (via GORM), Redis 7+  
+**Testing**: Go standard testing (`go test`), Vitest for frontend  
+**Target Platform**: Web browser (Chrome/Firefox/Safari/Edge latest 2 versions)  
+**Project Type**: web-service (backend REST API + frontend SPA)  
+**Performance Goals**: 100 concurrent SMS requests/min, SMS delivery < 30s avg, login p95 < 200ms  
+**Constraints**: SMS rate limiting (60s/phone, 10/min/IP), JWT access token 14 days, refresh token 30 days  
+**Scale/Scope**: Single tenant, ~10k MAU, single region deployment
 
 ## Constitution Check
 
-*Constitution is template-only (not ratified). Skipping formal gates.*
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+The project constitution (`constitution.md`) is currently a template and has not been ratified with concrete principles. Therefore, no active gates to evaluate. Proceeding with standard web-service best practices.
 
 ## Project Structure
 
@@ -33,48 +31,48 @@
 
 ```text
 specs/007-user-sms-login/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
 
 ```text
-apps/api/
-├── cmd/main.go                    # Gin router, middleware, route registration
-├── internal/
-│   ├── handler/auth.go            # Login, register, phone auth, JWT handlers
-│   ├── handler/user.go            # User profile CRUD
-│   ├── middleware/auth.go         # JWT verification middleware
-│   ├── middleware/cors.go         # CORS with wildcard subdomain support
-│   ├── model/user.go              # User entity (GORM)
-│   ├── service/                   # Business logic layer
-│   └── repository/                # Data access layer
-├── pkg/jwtutil/                   # JWT token generation / validation
-└── migrations/                    # Auto-migration on startup
-
-apps/web/
-├── src/
-│   ├── pages/
-│   │   ├── Login/index.tsx        # Tab切换: 密码登录 / 手机号登录
-│   │   ├── Register/index.tsx     # 独立注册页 (用户名+邮箱+密码)
-│   │   └── ForgotPassword/        # TODO: 忘记密码页 (待实现)
-│   ├── services/
-│   │   ├── api.ts                 # Axios instance + auth API
-│   │   └── pricing.ts             # Pricing API
-│   ├── stores/auth.ts             # Zustand auth store (token, user, login/logout)
-│   └── hooks/
-│       ├── useWechatAuth.ts       # Wechat login integration
-│       └── usePhoneAuth.ts        # Aliyun PNS (number authentication)
-└── vite.config.ts                 # Dev proxy /api -> localhost:8080
+apps/
+├── api/                          # Go backend (Gin)
+│   ├── cmd/main.go
+│   ├── internal/
+│   │   ├── handler/auth.go       # Auth handlers (login/register/sms)
+│   │   ├── handler/user.go       # User profile handlers
+│   │   ├── model/user.go         # User entity
+│   │   ├── repository/user.go    # User DB repository
+│   │   ├── service/sms.go        # SMS service (Aliyun)
+│   │   └── middleware/
+│   │       ├── jwt.go            # JWT generation/validation
+│   │       ├── auth.go           # Auth middleware
+│   │       └── login_protection.go # Rate limiting
+│   └── migrations/               # DB migrations
+├── web/                          # React frontend (user-facing)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Login.tsx         # Login page (sms + password tabs)
+│   │   │   └── Register.tsx      # Registration page
+│   │   ├── components/
+│   │   │   └── auth/
+│   │   │       ├── PhoneLoginForm.tsx
+│   │   │       ├── PasswordLoginForm.tsx
+│   │   │       └── RegisterForm.tsx
+│   │   └── services/
+│   │       └── auth.ts           # Auth API client
+└── web-admin/                    # React admin frontend
 ```
 
-**Structure Decision**: Monorepo with separate Go API backend and React Vite frontend. Backend uses layered architecture (handler → service → repository). Frontend uses page-based routing with Zustand global state.
+**Structure Decision**: Monorepo with Go backend (`apps/api`) and React SPAs (`apps/web`, `apps/web-admin`). The feature primarily touches `apps/api/internal/handler/auth.go`, `apps/api/internal/model/user.go`, and `apps/web/src/pages/Login.tsx` plus new `Register.tsx`.
 
 ## Complexity Tracking
 
-> No constitution violations identified.
+> No constitution violations. Existing architecture is sufficient.

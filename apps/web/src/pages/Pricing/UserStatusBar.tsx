@@ -40,7 +40,7 @@ const UserStatusBar: React.FC<UserStatusBarProps> = ({ onUpgrade }) => {
         />
         <div className={styles.info}>
           <div className={styles.nameRow}>
-            <span className={styles.name}>{profile?.nickname || user?.username || '用户'}</span>
+            <span className={styles.name}>{profile?.nickname || user?.nickname || '用户'}</span>
             {isVip && !isExpired ? (
               <Tag
                 icon={<CrownOutlined />}

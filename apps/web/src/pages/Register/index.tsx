@@ -16,7 +16,6 @@ import {
 import {
   UserOutlined,
   LockOutlined,
-  MailOutlined,
   MobileOutlined,
   StockOutlined,
   CheckCircleOutlined,
@@ -28,12 +27,10 @@ import { authApi } from '../../services/api'
 const { Text } = Typography
 
 interface RegisterFormData {
-  username: string
-  email: string
-  phone?: string
+  nickname: string
+  phone: string
   password: string
   confirmPassword: string
-  full_name?: string
 }
 
 const Register: React.FC = () => {
@@ -56,11 +53,10 @@ const Register: React.FC = () => {
 
     try {
       const response = await authApi.register({
-        username: values.username,
-        email: values.email,
-        password: values.password,
+        nickname: values.nickname,
         phone: values.phone,
-        full_name: values.full_name,
+        password: values.password,
+        confirm_password: values.confirmPassword,
       })
 
       message.success('注册成功！')
@@ -194,37 +190,17 @@ const Register: React.FC = () => {
           layout="vertical"
         >
           <Form.Item
-            name="username"
+            name="nickname"
             rules={[
-              { required: true, message: '请输入用户名' },
-              { min: 3, message: '用户名至少3个字符' },
-              { max: 20, message: '用户名最多20个字符' },
-              { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
+              { required: true, message: '请输入昵称' },
+              { min: 2, message: '昵称至少2个字符' },
+              { max: 20, message: '昵称最多20个字符' },
+              { pattern: /^[一-龥a-zA-Z0-9_]+$/, message: '昵称只能包含中文、字母、数字和下划线' },
             ]}
           >
             <Input
               prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="用户名"
-              size="large"
-              style={{
-                height: 52,
-                borderRadius: 12,
-                border: '1px solid var(--border-medium)',
-                background: 'rgba(255, 255, 255, 0.8)'
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' },
-            ]}
-          >
-            <Input
-              prefix={<MailOutlined style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="邮箱"
+              placeholder="昵称"
               size="large"
               style={{
                 height: 52,
@@ -238,30 +214,15 @@ const Register: React.FC = () => {
           <Form.Item
             name="phone"
             rules={[
+              { required: true, message: '请输入手机号' },
               { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' },
             ]}
           >
             <Input
               prefix={<MobileOutlined style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="手机号（可选）"
+              placeholder="手机号"
               size="large"
               maxLength={11}
-              style={{
-                height: 52,
-                borderRadius: 12,
-                border: '1px solid var(--border-medium)',
-                background: 'rgba(255, 255, 255, 0.8)'
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="full_name"
-          >
-            <Input
-              prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="姓名（可选）"
-              size="large"
               style={{
                 height: 52,
                 borderRadius: 12,

@@ -15,10 +15,9 @@ type User struct {
 	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
 
 	// 基础信息
-	Email    string `json:"email" gorm:"uniqueIndex;size:255"`
-	Username string `json:"username" gorm:"uniqueIndex;size:50"`
-	FullName string `json:"full_name" gorm:"size:100"`
-	Nickname string `json:"nickname" gorm:"size:100"`
+	Email    string `json:"email,omitempty" gorm:"index;size:255"`
+	Username string `json:"username,omitempty" gorm:"index;size:50"`
+	Nickname string `json:"nickname" gorm:"uniqueIndex;size:100"`
 	Phone    string `json:"phone" gorm:"size:20;uniqueIndex:idx_users_phone"`
 	AvatarURL string `json:"avatar_url" gorm:"size:500"`
 
@@ -67,9 +66,6 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 func (u *User) DisplayName() string {
 	if u.Nickname != "" {
 		return u.Nickname
-	}
-	if u.FullName != "" {
-		return u.FullName
 	}
 	if u.Username != "" {
 		return u.Username

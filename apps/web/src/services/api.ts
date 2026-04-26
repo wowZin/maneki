@@ -55,15 +55,14 @@ api.interceptors.response.use(
 
 // 认证相关接口
 export interface RegisterData {
-  email: string
+  nickname: string
+  phone: string
   password: string
-  username: string
-  full_name?: string
-  phone?: string
+  confirm_password: string
 }
 
-export interface LoginData {
-  username: string
+export interface PasswordLoginData {
+  account: string
   password: string
 }
 
@@ -110,10 +109,8 @@ export interface TokenResponse {
   expires_in: number
   user: {
     id: string
-    email: string
-    username: string
-    nickname?: string
-    phone?: string
+    nickname: string
+    phone: string
     avatar_url?: string
     vip_level?: number
     vip_tier?: string
@@ -131,8 +128,8 @@ export const authApi = {
     return response.data
   },
 
-  // 登录
-  login: async (data: LoginData): Promise<TokenResponse> => {
+  // 密码登录（支持手机号或昵称）
+  passwordLogin: async (data: PasswordLoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/login', data)
     return response.data
   },

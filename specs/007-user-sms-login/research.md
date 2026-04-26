@@ -1,140 +1,72 @@
-# Research: 用户手机号登录（号码认证 + 短信验证码）
+# Research: 双登录方式用户认证体系
 
-**Feature**: 用户手机号登录
-**Date**: 2026-04-22
+## Decision: 登录方式架构
 
-## 决策记录
-
-### 1. 登录通道方案：号码认证为主，短信验证码兜底
-
-**Decision**: 采用「阿里云号码认证（本机号码校验）」作为主要登录通道，「阿里云短信验证码」作为 fallback 兜底方案。
+**Chosen**: 单一 AuthHandler 内维护两种登录入口（短信验证码 / 密码），共享用户查询和 Token 生成逻辑。登录页前端以 Tab 切换方式呈现两种表单。
 
 **Rationale**:
-- 用户明确使用阿里云号码认证服务（时序图所示的 `PhoneNumberServer` / `GetAuthToken` / `VerifyPhoneWithToken` 流程）
-- 号码认证体验更优：用户输入手机号后点击验证，通过运营商网关直接校验是否为本机号码，无需等待短信、无需手动输入验证码
-- 号码认证成本更低：按次计费，通常比短信便宜
-- **但必须保留短信验证码 fallback**，因为号码认证有环境限制：
-  - 必须在手机浏览器中使用（依赖蜂窝网络网关）
-  - PC 端浏览器、平板 WiFi 环境、部分运营商网络下可能无法使用
-  - 阿里云 SDK `checkAuthAvailable` 会返回当前环境是否支持号码认证
-- 前端先调用 `checkAuthAvailable` 判断环境，支持则走号码认证，不支持则自动降级为短信验证码
+- 现有代码已具备 `LoginByPhoneCode` 和 `findOrCreateUserByPhone`，扩展成本低
+- 密码登录可直接复用现有的 `bcrypt` 校验和 JWT 生成流水线
+- 两种方式的最终产物相同（access_token + refresh_token Cookie），后端无需区分登录方式处理后续请求
+- 前端复用同一个页面减少路由和状态管理的复杂度
 
 **Alternatives considered**:
-- 仅号码认证：无法覆盖 PC 端和 WiFi 场景，不可接受
-- 仅短信验证码：与用户提供的阿里云号码认证架构冲突，且体验不如号码认证
+- 分离为两个独立 handler：增加代码重复，无益于维护
+- OAuth/SSO 集成：超出本 feature 范围，用户未要求
 
----
+## Decision: 昵称全局唯一与自动注册默认昵称
 
-### 2. 阿里云号码认证技术方案
-
-**Decision**: 后端封装阿里云号码认证 OpenAPI，前端引入阿里云 H5 SDK
+**Chosen**: 自动注册（短信登录）时，系统使用手机号脱敏形式作为初始昵称（如 `13****5678`），并标记为 `is_auto_nickname = true`，用户后续可在设置中修改。显式注册时用户自行填写昵称，需校验全局唯一。
 
 **Rationale**:
-- 后端职责：
-  1. 调用阿里云 `GetAuthToken` 获取 `accessToken` + `jwtToken`
-  2. 将 Token 返回给前端
-  3. 接收前端提交的 `spToken` + `phone`，调用阿里云 `VerifyPhoneWithToken` 验证
-  4. 验证通过后完成登录/自动注册
-- 前端职责：
-  1. 安装并引入阿里云 H5 SDK（`npm install aliyun_numberauthsdk_web -S`）
-  2. 初始化 `new PhoneNumberServer({...})`
-  3. 从后端获取 Token，调用 SDK `checkAuthAvailable` 鉴权
-  4. 调用 SDK `getVerifyToken` 获取 `spToken`
-  5. 将 `spToken` + `phone` 提交给后端验证
-- 阿里云 Go SDK（`github.com/alibabacloud-go/dypnsapi-20170525`）或直接用 HTTP 调用 OpenAPI
+- 手机号天然唯一，脱敏后作为初始昵称不会出现冲突
+- 脱敏形式比完整手机号更保护隐私
+- 标记 `is_auto_nickname` 以便前端在首次登录后提示用户修改（可选体验优化）
+- 显式注册时强制唯一性检查，避免后续登录歧义
 
 **Alternatives considered**:
-- 纯后端完成所有流程：阿里云号码认证要求前端 SDK 与运营商网关交互，无法纯后端完成
-- 前端直接调阿里云 API：不安全，AccessKey 会暴露在前端
+- 随机生成昵称（如"用户_8a3f"）：不友好，用户难以识别和记忆
+- 要求短信登录用户立即设置昵称：增加登录 friction，违背"一键登录"的便捷性
+- 使用完整手机号作为昵称：暴露隐私
 
----
+## Decision: 用户模型迁移策略
 
-### 3. 短信验证码方案（Fallback）
-
-**Decision**: 当号码认证不可用时，降级为阿里云短信验证码
-
-**Rationale**:
-- 与号码认证同属阿里云生态，账号和签名模板可共用
-- 开发环境提供 Mock 实现，避免真实发送短信
-- Redis 存储验证码 + 频率限制，与原有架构一致
-
-**实现要点**:
-- Redis Key: `sms:login:{phone}`，Value: 6 位数字，TTL: 300s
-- 频率限制: `sms:limit:phone:{phone}` TTL 60s，`sms:limit:ip:{ip}` 每分钟 10 次
-- 短信模板："您的验证码是 ${code}，5 分钟内有效"
-
----
-
-### 4. 登录凭证方案
-
-**Decision**: 完全复用现有 JWT 体系（access_token + refresh_token + httpOnly Cookie）
+**Chosen**: 本次 feature 仅修改新注册/新登录用户的行为，对存量数据采用"兼容保留"策略：
+- `email` 字段从唯一索引降级为普通索引（或移除唯一约束），允许为空
+- `nickname` 添加唯一索引，但存量数据中重复的 nickname 需要预先处理（脚本去重或填充唯一值）
+- `username` 字段保留但不再用于用户端登录（仅作为遗留兼容）
 
 **Rationale**:
-- 后端已有成熟的 JWT 生成、解析、刷新、黑名单机制
-- 无论号码认证还是短信验证码，验证成功后的凭证发放与现有邮箱/密码登录完全一致
-- 前端 auth store 无需改动
-
----
-
-### 5. 前端登录页交互设计
-
-**Decision**: 在现有登录页面增加 "账号密码登录 / 手机号登录" Tab 切换。手机号登录页内优先尝试号码认证，不支持时显示短信验证码输入框。
-
-**Rationale**:
-- 不新增独立路由
-- 用户无感切换：进入手机号登录页后，前端自动检测环境并选择最佳验证方式
-- 若支持号码认证：显示「一键验证」按钮，点击后输入手机号直接验证
-- 若不支持号码认证：显示「获取验证码」按钮 + 验证码输入框，走传统短信流程
-- 保留微信一键登录按钮
-
----
-
-### 6. 自动注册策略
-
-**Decision**: 手机号验证成功后，若该手机号未注册则自动创建用户账户
-
-**Rationale**:
-- 简化用户流程，无需先注册再登录
-- 新用户字段：`phone` = 手机号，`register_source` = `"phone"`，`nickname` 默认隐藏版手机号，`username` 使用手机号
-- 用户后续可在个人中心补全邮箱、设置密码
-
----
-
-### 7. 密码安全策略
-
-**Decision**: `bcrypt` 哈希存储密码，默认 cost 10。
-
-**Rationale**:
-- 账号密码登录和注册需要安全的密码存储。
-- bcrypt 是 Go 标准库 `golang.org/x/crypto/bcrypt` 的一部分，成熟可靠。
-- 注册和重置密码时需校验复杂度：至少 8 位，包含字母和数字。
+- 强制迁移存量数据风险高，可能导致生产事故
+- 逐步废弃 `email` 和 `username` 比立即删除更安全
+- 新逻辑以 `phone` 和 `nickname` 为唯一键，旧数据不影响新用户流程
 
 **Alternatives considered**:
-- Argon2: Rejected — bcrypt 对当前威胁模型足够，且更简单。
-- Plain text / MD5: Rejected — 严重安全风险。
+- 一次性删除 email/username 字段：破坏现有 admin 功能和其他依赖
+- 强制要求存量用户补充 nickname：运营成本高，非本 feature 范围
 
-### 8. CORS 多域名支持
+## Decision: 密码登录的 identifier 支持
 
-**Decision**: 后端 CORS 中间件支持 `*.maneki.cn` 通配符子域名，并兼容带端口的 origin。
-
-**Rationale**:
-- 开发环境使用 `dev.maneki.cn:5173`、`app.maneki.cn:5173` 等自定义域名。
-- CORS 中间件已更新为提取 origin 中的纯域名部分进行通配符匹配（去掉协议和端口）。
-
-### 9. "记住我"功能
-
-**Decision**: 前端提供"记住我"复选框，勾选时 refresh token 有效期 30 天，不勾选时 session 在关闭浏览器后失效。
+**Chosen**: 密码登录时，前端传递单个 `account` 字段（用户可输入手机号或昵称），后端先尝试按手机号查找，未命中再按昵称查找。
 
 **Rationale**:
-- 通过控制 refresh token 的过期时间实现。
-- 前端将 token 存入 `localStorage`（记住我）或 `sessionStorage`（不记住）。
-- 当前实现统一使用 `localStorage`，需扩展支持两种存储策略。
+- 用户无需记住自己注册时用的是手机号还是昵称
+- 后端两次查询成本极低（手机号有索引，昵称也有索引）
+- 避免前端传递两个字段带来的复杂校验逻辑
 
-### 10. 安全与防刷策略
+## Decision: 短信验证码存储
 
-**Decision**: 四层防护
-1. **号码认证层面**：阿里云 SDK 自带运营商网关安全校验，难以伪造
-2. **短信频率限制**：60 秒防重发 + IP 限流（仅 fallback 到短信时生效）
-3. **接口通用防护**：后端对 `/auth/phone/*` 接口启用现有 rate limit 中间件
-4. **密码登录防护**：账号密码登录接口启用 rate limit，防止暴力破解
+**Chosen**: 继续使用现有 Redis 存储方案（`sms:code:{phone}`），5 分钟 TTL，验证码 6 位数字。
 
+**Rationale**:
+- 现有 `smsService` 已实现完整的生成、存储、校验、过期逻辑
+- Redis TTL 天然支持过期，无需额外定时任务
+- 无需改动，直接复用
+
+## Decision: 密码复杂度校验位置
+
+**Chosen**: 后端 `validatePasswordStrength` 作为权威校验（已有实现，只需从 min=6 提升为 min=8 并保留字母+数字检查），前端同步做即时反馈以提升 UX。
+
+**Rationale**:
+- 安全校验必须在后端，前端校验仅为体验优化
+- 现有 `validatePasswordStrength` 在 `auth.go` 中，逻辑可直接复用

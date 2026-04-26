@@ -1,72 +1,49 @@
-# API Contracts: 007 用户认证
+# API Contracts: 用户认证
 
 ## Base URL
 
-- Development: `http://localhost:8080/api/v1/client`
-- Production: `https://api.maneki.cn/api/v1/client`
-
-## Authentication
-
-All protected endpoints require `Authorization: Bearer <access_token>` header.
+`/api/v1/auth`
 
 ---
 
-## 1. Account Password Login
+## 1. 发送短信验证码
 
-### POST /auth/login
+### POST /send-code
 
-Login with username/email and password.
+发送登录/注册用的短信验证码。
 
-**Request Body:**
-```json
-{
-  "username": "string",  // username or email
-  "password": "string"
-}
-```
-
-**Response (200):**
-```json
-{
-  "access_token": "string",
-  "token_type": "bearer"
-}
-```
-
-**Error Responses:**
-- `401 Unauthorized`: Invalid username or password
-- `429 Too Many Requests`: Rate limited
-
----
-
-## 2. Phone SMS Login
-
-### POST /auth/phone/send-code
-
-Send SMS verification code to phone number.
-
-**Request Body:**
+**Request:**
 ```json
 {
   "phone": "13800138000"
 }
 ```
 
-**Response (200):**
+**Response 200:**
 ```json
 {
   "message": "验证码已发送"
 }
 ```
 
-**Error Responses:**
-- `429 Too Many Requests`: Rate limited (phone or IP)
+**Response 429 (Rate Limited):**
+```json
+{
+  "error": "请稍后再试",
+  "code": "rate_limited_phone",
+  "retry_after": 45
+}
+```
 
-### POST /auth/phone/login-by-code
+---
 
-Login with phone number and SMS code.
+## 2. 短信验证码登录
 
-**Request Body:**
+### POST /login/phone
+
+使用手机号 + 短信验证码登录。未注册手机号将自动创建账户。
+
+**Request:**
 ```json
 {
   "phone": "13800138000",
@@ -74,179 +51,224 @@ Login with phone number and SMS code.
 }
 ```
 
-**Response (200):**
+**Response 200:**
 ```json
 {
-  "access_token": "string",
-  "refresh_token": "string",
-  "token_type": "bearer",
-  "expires_in": 7200,
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 1209600,
   "user": {
-    "id": "uuid",
-    "username": "string",
-    "nickname": "string",
-    "phone": "string",
-    "avatar_url": "string",
+    "id": "...",
+    "nickname": "138****8000",
+    "phone": "13800138000",
+    "avatar_url": "",
     "vip_level": 0,
-    "vip_tier": "basic"
+    "vip_tier": "free",
+    "is_vip": false,
+    "is_superuser": false
   }
 }
 ```
 
-**Error Responses:**
-- `400 Bad Request`: Invalid code or code expired
-
----
-
-## 3. Phone Number Authentication (PNS)
-
-### POST /auth/phone/token
-
-Get authentication token for PNS SDK.
-
-**Response (200):**
+**Response 401 (Invalid/Expired Code):**
 ```json
 {
-  "access_token": "string",
-  "jwt_token": "string",
-  "expire_time": 1714032000
+  "error": "验证码错误，请重新输入",
+  "code": "invalid_code"
 }
 ```
 
-### POST /auth/phone/verify
+**Cookies:**
+- `access_token` (httpOnly, 14 days)
+- `refresh_token` (httpOnly, 30 days)
 
-Verify phone with PNS spToken.
+---
 
-**Request Body:**
+## 3. 密码登录
+
+### POST /login
+
+使用手机号或昵称 + 密码登录。
+
+**Request:**
 ```json
 {
+  "account": "13800138000",
+  "password": "mypassword123"
+}
+```
+
+> `account` 可以是手机号或昵称。
+
+**Response 200:** 同短信登录成功响应
+
+**Response 401:**
+```json
+{
+  "error": "账号或密码错误"
+}
+```
+
+**Response 423 (Account Locked):**
+```json
+{
+  "error": "登录失败次数过多，账号已锁定，请5分钟后再试",
+  "retry_after": "5分钟"
+}
+```
+
+---
+
+## 4. 用户注册
+
+### POST /register
+
+显式注册新账户。
+
+**Request:**
+```json
+{
+  "nickname": "我的昵称",
   "phone": "13800138000",
-  "sp_token": "string"
+  "password": "mypassword123",
+  "confirm_password": "mypassword123"
 }
 ```
 
-**Response (200):** Same as SMS login success response.
+**Response 201:** 同登录成功响应（自动登录）
+
+**Response 409 (Duplicate):**
+```json
+{
+  "error": "该手机号已被注册"
+}
+```
+或
+```json
+{
+  "error": "该昵称已被使用"
+}
+```
+
+**Response 400 (Password Mismatch):**
+```json
+{
+  "error": "两次输入的密码不一致"
+}
+```
+
+**Response 400 (Weak Password):**
+```json
+{
+  "error": "密码至少8位，且必须同时包含字母和数字"
+}
+```
 
 ---
 
-## 4. User Registration
+## 5. 退出登录
 
-### POST /auth/register
+### POST /logout
 
-Register a new account with username, email, and password.
+清除登录状态（Cookie + Token 黑名单）。
 
-**Request Body:**
+**Request:** 无需 body，依赖 Cookie 中的 access_token。
+
+**Response 200:**
 ```json
 {
-  "username": "string",
-  "email": "user@example.com",
-  "password": "string",
-  "full_name": "string"  // optional
+  "message": "logged out successfully"
 }
 ```
-
-**Validation Rules:**
-- `username`: 3-20 chars, alphanumeric and underscore only, unique
-- `email`: valid email format, unique
-- `password`: min 8 chars, must contain both letters and numbers
-
-**Response (201):**
-```json
-{
-  "id": "uuid",
-  "username": "string",
-  "email": "string",
-  "message": "注册成功"
-}
-```
-
-**Error Responses:**
-- `400 Bad Request`: Validation failed (username/email exists, password too weak)
 
 ---
 
-## 5. Forgot Password
+## 6. 刷新 Token
 
-### POST /auth/forgot-password/send-code
+### POST /refresh
 
-Send SMS code for password reset.
+使用 refresh_token 获取新的 access_token。
 
-**Request Body:**
+**Request:**
 ```json
 {
-  "phone": "13800138000"
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
 
-**Response (200):** Same as `/auth/phone/send-code`
-
-### POST /auth/forgot-password/reset
-
-Reset password with phone verification.
-
-**Request Body:**
+**Response 200:**
 ```json
 {
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 1209600
+}
+```
+
+---
+
+## 7. 获取当前用户信息
+
+### GET /me
+
+**Headers:** `Authorization: Bearer {access_token}` 或自动携带 Cookie。
+
+**Response 200:**
+```json
+{
+  "id": "...",
+  "nickname": "我的昵称",
   "phone": "13800138000",
-  "code": "123456",
-  "new_password": "string"
-}
-```
-
-**Validation Rules:**
-- `new_password`: min 8 chars, must contain both letters and numbers
-
-**Response (200):**
-```json
-{
-  "message": "密码重置成功",
-  "access_token": "string",
-  "token_type": "bearer"
-}
-```
-
-**Error Responses:**
-- `400 Bad Request`: Invalid code or password too weak
-
----
-
-## 6. Get Current User
-
-### GET /auth/me
-
-Get current authenticated user info.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response (200):**
-```json
-{
-  "id": "uuid",
-  "username": "string",
-  "email": "string",
-  "phone": "string",
-  "nickname": "string",
-  "avatar_url": "string",
+  "avatar_url": "",
   "vip_level": 0,
-  "vip_tier": "basic",
-  "is_active": true,
-  "is_verified": true
+  "vip_tier": "free",
+  "is_vip": false,
+  "is_superuser": false
 }
 ```
 
 ---
 
-## 7. Logout
+## 8. 设置/修改密码
 
-### POST /auth/logout
+### POST /password
 
-Logout current user (client-side token removal). Server may blacklist token if implemented.
+已登录用户设置或修改密码。短信自动注册用户首次设置密码时无需旧密码；已设置过密码的用户需提供旧密码。
 
-**Headers:** `Authorization: Bearer <token>`
-
-**Response (200):**
+**Request:**
 ```json
 {
-  "message": "已退出登录"
+  "old_password": "",          // 首次设置可为空
+  "new_password": "newpass123",
+  "confirm_password": "newpass123"
 }
 ```
+
+**Response 200:**
+```json
+{
+  "message": "密码设置成功"
+}
+```
+
+**Response 403 (Wrong Old Password):**
+```json
+{
+  "error": "旧密码错误"
+}
+```
+
+---
+
+## 通用错误格式
+
+所有 4xx/5xx 错误统一返回：
+
+```json
+{
+  "error": "人类可读的错误描述"
+}
+```
+
+部分错误包含 `code` 字段供前端做特定处理（如 `rate_limited_phone`, `invalid_code`, `code_expired`）。

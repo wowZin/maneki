@@ -1,5 +1,5 @@
 export { api, authApi } from './api'
-export type { RegisterData, LoginData, AuthResponse } from './api'
+export type { RegisterData, PasswordLoginData, AuthResponse } from './api'
 
 export { pricingApi } from './pricing'
 

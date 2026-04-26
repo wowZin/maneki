@@ -20,7 +20,6 @@ import {
   CrownOutlined,
   EditOutlined,
   SaveOutlined,
-  MailOutlined,
   MobileOutlined,
   SafetyCertificateOutlined,
   BarChartOutlined,
@@ -41,8 +40,6 @@ const Profile: React.FC = () => {
   useEffect(() => {
     if (user) {
       form.setFieldsValue({
-        username: user.username,
-        email: user.email,
         nickname: user.nickname,
         phone: user.phone,
       })
@@ -109,8 +106,8 @@ const Profile: React.FC = () => {
                 />
                 <div className={styles.avatarRing} />
               </div>
-              <h2 className={styles.userName}>{user?.nickname || user?.username || '用户'}</h2>
-              <p className={styles.userHandle}>@{user?.username}</p>
+              <h2 className={styles.userName}>{user?.nickname || '用户'}</h2>
+              <p className={styles.userHandle}>@{user?.nickname}</p>
               <Tag
                 className={styles.tierTag}
                 style={{
@@ -125,10 +122,10 @@ const Profile: React.FC = () => {
 
             <div className={styles.userMeta}>
               <div className={styles.metaItem}>
-                <MailOutlined className={styles.metaIcon} />
+                <MobileOutlined className={styles.metaIcon} />
                 <div>
-                  <div className={styles.metaLabel}>邮箱</div>
-                  <div className={styles.metaValue}>{user?.email || '-'}</div>
+                  <div className={styles.metaLabel}>手机号</div>
+                  <div className={styles.metaValue}>{user?.phone || '-'}</div>
                 </div>
               </div>
               <div className={styles.metaItem}>
@@ -236,29 +233,11 @@ const Profile: React.FC = () => {
                 className={styles.profileForm}
               >
                 <Form.Item
-                  name="username"
-                  label="用户名"
-                  rules={[{ required: true, message: '请输入用户名' }]}
-                >
-                  <Input prefix={<UserOutlined />} placeholder="用户名" />
-                </Form.Item>
-
-                <Form.Item
                   name="nickname"
-                  label="姓名"
+                  label="昵称"
+                  rules={[{ required: true, message: '请输入昵称' }]}
                 >
-                  <Input prefix={<UserOutlined />} placeholder="姓名" />
-                </Form.Item>
-
-                <Form.Item
-                  name="email"
-                  label="邮箱"
-                  rules={[
-                    { required: true, message: '请输入邮箱' },
-                    { type: 'email', message: '请输入有效的邮箱' },
-                  ]}
-                >
-                  <Input prefix={<MailOutlined />} placeholder="邮箱" />
+                  <Input prefix={<UserOutlined />} placeholder="昵称" />
                 </Form.Item>
 
                 <Form.Item

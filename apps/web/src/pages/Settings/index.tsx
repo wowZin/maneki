@@ -3,7 +3,7 @@
  * 暖色招财风格，账号安全与偏好设置
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card,
@@ -23,11 +23,14 @@ import {
   SaveOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/auth'
+import { useUserProfileStore } from '../../stores/userProfile'
+import { userApi } from '../../services/user'
 import styles from './Settings.module.css'
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()
   const { logout } = useAuthStore()
+  const { profile } = useUserProfileStore()
   const [passwordForm] = Form.useForm()
   const [changingPassword, setChangingPassword] = useState(false)
   const [notifications, setNotifications] = useState({
@@ -37,15 +40,26 @@ const Settings: React.FC = () => {
     marketing: false,
   })
 
-  const handleChangePassword = async (_values: any) => {
+  const hasPassword = profile?.has_password ?? true
+
+  useEffect(() => {
+    if (!profile) {
+      useUserProfileStore.getState().fetchProfile()
+    }
+  }, [profile])
+
+  const handleChangePassword = async (values: any) => {
     setChangingPassword(true)
     try {
-      // TODO: 调用修改密码 API
-      // await authApi.changePassword(values)
-      message.success('密码修改成功')
+      await userApi.changePassword({
+        old_password: hasPassword ? values.currentPassword : '',
+        new_password: values.newPassword,
+        confirm_password: values.confirmPassword,
+      })
+      message.success(hasPassword ? '密码修改成功' : '密码设置成功')
       passwordForm.resetFields()
-    } catch {
-      message.error('修改失败，请稍后重试')
+    } catch (err: any) {
+      message.error(err.response?.data?.message || '修改失败，请稍后重试')
     } finally {
       setChangingPassword(false)
     }
@@ -73,7 +87,7 @@ const Settings: React.FC = () => {
             title={
               <div className={styles.cardHeader}>
                 <LockOutlined className={styles.cardIcon} />
-                <span>修改密码</span>
+                <span>{hasPassword ? '修改密码' : '设置密码'}</span>
               </div>
             }
           >
@@ -83,28 +97,30 @@ const Settings: React.FC = () => {
               onFinish={handleChangePassword}
               className={styles.settingsForm}
             >
-              <Form.Item
-                name="currentPassword"
-                label="当前密码"
-                rules={[{ required: true, message: '请输入当前密码' }]}
-              >
-                <Input.Password
-                  prefix={<SafetyOutlined />}
-                  placeholder="当前密码"
-                />
-              </Form.Item>
+              {hasPassword && (
+                <Form.Item
+                  name="currentPassword"
+                  label="当前密码"
+                  rules={[{ required: true, message: '请输入当前密码' }]}
+                >
+                  <Input.Password
+                    prefix={<SafetyOutlined />}
+                    placeholder="当前密码"
+                  />
+                </Form.Item>
+              )}
 
               <Form.Item
                 name="newPassword"
                 label="新密码"
                 rules={[
                   { required: true, message: '请输入新密码' },
-                  { min: 8, message: '密码至少8位' },
+                  { min: 8, message: '密码至少8位，需包含字母和数字' },
                 ]}
               >
                 <Input.Password
                   prefix={<LockOutlined />}
-                  placeholder="新密码"
+                  placeholder="新密码（至少8位）"
                 />
               </Form.Item>
 
@@ -137,7 +153,7 @@ const Settings: React.FC = () => {
                 icon={<SaveOutlined />}
                 className={styles.saveBtn}
               >
-                修改密码
+                {hasPassword ? '修改密码' : '设置密码'}
               </Button>
             </Form>
           </Card>

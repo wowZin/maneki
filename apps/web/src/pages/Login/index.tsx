@@ -32,7 +32,7 @@ import { usePhoneAuth } from '../../hooks/usePhoneAuth'
 const { Text } = Typography
 
 interface LoginFormData {
-  username: string
+  account: string
   password: string
 }
 
@@ -112,8 +112,8 @@ const Login: React.FC = () => {
     setLoading(true)
 
     try {
-      const authResponse = await authApi.login({
-        username: values.username,
+      const authResponse = await authApi.passwordLogin({
+        account: values.account,
         password: values.password,
       })
 
@@ -129,7 +129,7 @@ const Login: React.FC = () => {
       } else if (err.response.status === 429) {
         errorMsg = err.response.data?.error || '操作过于频繁，请稍后再试'
       } else {
-        errorMsg = err.response.data?.error || '登录失败，请检查用户名和密码'
+        errorMsg = err.response.data?.error || '登录失败，请检查账号和密码'
       }
       setError(errorMsg)
       message.error(errorMsg)
@@ -533,14 +533,14 @@ const Login: React.FC = () => {
                     layout="vertical"
                   >
                     <Form.Item
-                      name="username"
+                      name="account"
                       rules={[
-                        { required: true, message: '请输入用户名或邮箱' },
+                        { required: true, message: '请输入手机号或昵称' },
                       ]}
                     >
                       <Input
                         prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
-                        placeholder="用户名或邮箱"
+                        placeholder="手机号或昵称"
                         size="large"
                         style={{
                           height: 52,
@@ -555,7 +555,7 @@ const Login: React.FC = () => {
                       name="password"
                       rules={[
                         { required: true, message: '请输入密码' },
-                        { min: 6, message: '密码至少6位' },
+                        { min: 8, message: '密码至少8位' },
                       ]}
                     >
                       <Input.Password

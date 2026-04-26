@@ -234,7 +234,7 @@ const Layout: React.FC = () => {
                   }}
                 />
                 <Text style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                  {user?.username || '用户'}
+                  {user?.nickname || '用户'}
                 </Text>
               </Space>
             </Dropdown>
