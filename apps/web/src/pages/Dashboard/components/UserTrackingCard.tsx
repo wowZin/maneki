@@ -39,7 +39,7 @@ const UserTrackingCard: React.FC<UserTrackingCardProps> = ({ onViewDetail }) => 
   }, [])
 
   const option = useMemo(() => {
-    if (!data || data.data.length === 0) return null
+    if (!data || !data.data || data.data.length === 0) return null
 
     const dates = data.data.map((item) => item.date)
     const hitRates = data.data.map((item) => parseFloat((item.hit_rate * 100).toFixed(2)))
@@ -113,7 +113,7 @@ const UserTrackingCard: React.FC<UserTrackingCardProps> = ({ onViewDetail }) => 
     }
   }, [])
 
-  const latestDate = data?.data[data.data.length - 1]?.date
+  const latestDate = data?.data?.length ? data.data[data.data.length - 1]?.date : undefined
 
   return (
     <Card
@@ -149,7 +149,7 @@ const UserTrackingCard: React.FC<UserTrackingCardProps> = ({ onViewDetail }) => 
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description={error} />
         </div>
-      ) : !data || data.data.length === 0 ? (
+      ) : !data || !data.data || data.data.length === 0 ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description="暂无追踪数据，开始关注股票吧" />
         </div>

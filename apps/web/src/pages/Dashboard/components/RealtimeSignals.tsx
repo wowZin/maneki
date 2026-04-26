@@ -97,7 +97,7 @@ const RealtimeSignals: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description={error} />
         </div>
-      ) : data.length === 0 ? (
+      ) : !data || data.length === 0 ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description="暂无实时信号" />
         </div>

@@ -39,7 +39,7 @@ const AccuracyTrendChart: React.FC = () => {
   }, [period])
 
   const option = useMemo(() => {
-    if (!data || data.data.length === 0) return null
+    if (!data || !data.data || data.data.length === 0) return null
 
     const dates = data.data.map((item) => item.date)
     const accuracies = data.data.map((item) => parseFloat((item.accuracy * 100).toFixed(2)))
@@ -152,7 +152,7 @@ const AccuracyTrendChart: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description={error} />
         </div>
-      ) : !data || data.data.length === 0 ? (
+      ) : !data || !data.data || data.data.length === 0 ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
           <Empty description="暂无数据" />
         </div>
