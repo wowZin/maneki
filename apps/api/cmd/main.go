@@ -133,7 +133,7 @@ func main() {
 	{
 		// 公开路由 - 用户端
 		v1.POST("/auth/register", authHandler.Register)
-		v1.POST("/auth/login", authHandler.Login)
+		v1.POST("/auth/login", authHandler.PasswordLogin)
 		v1.POST("/auth/refresh", authHandler.RefreshToken)
 
 		// 手机号登录（号码认证 + 短信验证码）
@@ -462,6 +462,11 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		log.Printf("Warning: failed to create phone unique index: %v", err)
 	}
 
+	// 执行 007 用户认证体系迁移
+	if err := migrate007Auth(db); err != nil {
+		log.Printf("Warning: failed to run 007 auth migration: %v", err)
+	}
+
 	return db, nil
 }
 
@@ -472,6 +477,20 @@ func createPhoneUniqueIndex(db *gorm.DB) error {
 		ON users (phone)
 		WHERE phone IS NOT NULL AND phone <> ''
 	`).Error
+}
+
+// migrate007Auth 执行 007 feature 的用户认证体系迁移
+func migrate007Auth(db *gorm.DB) error {
+	// 读取并执行迁移 SQL
+	sqlBytes, err := os.ReadFile("migrations/007_user_sms_login.sql")
+	if err != nil {
+		// 如果文件不存在，跳过（兼容首次启动）
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return db.Exec(string(sqlBytes)).Error
 }
 
 // createRebateRuleIndexes 创建返佣规则数据库约束

@@ -115,11 +115,9 @@ export const useWechatAuth = (): UseWechatAuthReturn => {
           // 保存登录状态
           login(response.access_token, {
             id: response.user_info.id,
-            email: '',  // 微信用户可能没有邮箱
-            username: response.user_info.username,
-            nickname: response.user_info.nickname,
+            nickname: response.user_info.nickname || response.user_info.username || '微信用户',
+            phone: response.user_info.phone || '',
             avatar_url: response.user_info.avatar_url,
-            phone: response.user_info.phone,
             is_active: true,
             is_superuser: false,
             is_verified: true,
@@ -194,11 +192,9 @@ export const useWechatAuth = (): UseWechatAuthReturn => {
 
             login(response.access_token, {
               id: response.user_info.id,
-              email: '',
-              username: response.user_info.username,
-              nickname: response.user_info.nickname,
+              nickname: response.user_info.nickname || response.user_info.username || '微信用户',
+              phone: response.user_info.phone || '',
               avatar_url: response.user_info.avatar_url,
-              phone: response.user_info.phone,
               is_active: true,
               is_superuser: false,
               is_verified: true,

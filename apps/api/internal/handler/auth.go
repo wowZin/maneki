@@ -44,18 +44,15 @@ func NewAuthHandler(cfg *config.Config, userRepo *repository.UserRepository, red
 
 // RegisterRequest 注册请求
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Username string `json:"username" binding:"required,min=3,max=50"`
-	Password string `json:"password" binding:"required,min=8"`
-	Nickname string `json:"nickname"`
-	FullName string `json:"full_name"`
-	Phone    string `json:"phone"`
+	Nickname        string `json:"nickname" binding:"required,min=2,max=20"`
+	Phone           string `json:"phone" binding:"required"`
+	Password        string `json:"password" binding:"required,min=8"`
+	ConfirmPassword string `json:"confirm_password" binding:"required"`
 }
 
-// LoginRequest 登录请求（支持 username 或 email）
-type LoginRequest struct {
-	Username string `json:"username"` // 用户名
-	Email    string `json:"email"`    // 邮箱（username 和 email 二选一）
+// PasswordLoginRequest 密码登录请求（支持手机号或昵称）
+type PasswordLoginRequest struct {
+	Account  string `json:"account" binding:"required"` // 手机号或昵称
 	Password string `json:"password" binding:"required"`
 }
 
@@ -71,8 +68,6 @@ type TokenResponse struct {
 // UserInfo 用户信息
 type UserInfo struct {
 	ID          string `json:"id"`
-	Email       string `json:"email"`
-	Username    string `json:"username"`
 	Nickname    string `json:"nickname"`
 	Phone       string `json:"phone"`
 	AvatarURL   string `json:"avatar_url"`
@@ -92,17 +87,29 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// 检查邮箱是否已存在
-	existingUser, _ := h.userRepo.GetByEmail(c.Request.Context(), req.Email)
-	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "该邮箱已被注册"})
+	// 检查手机号格式
+	if !h.smsService.IsValidPhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入有效的手机号"})
 		return
 	}
 
-	// 检查用户名是否已存在
-	existingUser, _ = h.userRepo.GetByUsername(c.Request.Context(), req.Username)
+	// 检查手机号是否已存在
+	existingUser, _ := h.userRepo.GetByPhone(c.Request.Context(), req.Phone)
 	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "该用户名已被使用"})
+		c.JSON(http.StatusConflict, gin.H{"error": "该手机号已被注册"})
+		return
+	}
+
+	// 检查昵称是否已存在
+	existingUser, _ = h.userRepo.GetByNickname(c.Request.Context(), req.Nickname)
+	if existingUser != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "该昵称已被使用"})
+		return
+	}
+
+	// 确认密码一致性
+	if req.Password != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "两次输入的密码不一致"})
 		return
 	}
 
@@ -121,13 +128,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// 创建用户
 	user := &model.User{
-		Email:          req.Email,
-		Username:       req.Username,
 		Nickname:       req.Nickname,
-		FullName:       req.FullName,
 		Phone:          req.Phone,
 		HashedPassword: string(hashedPassword),
-		RegisterSource: "email",
+		RegisterSource: "password",
 		IsActive:       true,
 		IsSuperuser:    false,
 		VIPLevel:       0,
@@ -151,7 +155,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	h.auditLogger.Log("user_create", user.ID.String(), user.Email, nil, c)
+	h.auditLogger.Log("user_create", user.ID.String(), req.Phone, nil, c)
 
 	// 设置 httpOnly Cookie
 	h.setTokenCookie(c, "access_token", accessToken, 14 * 24 * 60 * 60)
@@ -164,8 +168,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		ExpiresIn:    14 * 24 * 60 * 60,
 		User: UserInfo{
 			ID:          user.ID.String(),
-			Email:       user.Email,
-			Username:    user.Username,
 			Nickname:    user.Nickname,
 			Phone:       user.Phone,
 			AvatarURL:   user.AvatarURL,
@@ -177,32 +179,20 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login 用户登录
-func (h *AuthHandler) Login(c *gin.Context) {
-	var req LoginRequest
+// PasswordLogin 密码登录（支持手机号或昵称）
+func (h *AuthHandler) PasswordLogin(c *gin.Context) {
+	var req PasswordLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 验证 username 或 email 至少提供一个
-	if req.Username == "" && req.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入用户名或邮箱"})
-		return
-	}
-
 	ip := c.ClientIP()
-
-	// 查找用户（支持 username 或 email）
-	identifier := req.Username
-	if identifier == "" {
-		identifier = req.Email
-	}
+	account := req.Account
 
 	// 检查登录锁定
-	allowed, ttl := h.loginProtection.CheckLoginAttempts(identifier, ip)
+	allowed, ttl := h.loginProtection.CheckLoginAttempts(account, ip)
 	if !allowed {
-		// 格式化剩余时间为可读字符串
 		retryAfter := formatDuration(ttl)
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"error":       "登录失败次数过多，账号已锁定，请" + retryAfter + "后再试",
@@ -214,73 +204,48 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var user *model.User
 	var err error
 
-	// 先尝试用 username 查找
-	if req.Username != "" {
-		user, err = h.userRepo.GetByUsername(c.Request.Context(), req.Username)
-		// 如果 username 查找失败，且输入看起来像邮箱，再尝试用 email 查找
-		if (err != nil || user == nil) && strings.Contains(req.Username, "@") {
-			user, err = h.userRepo.GetByEmail(c.Request.Context(), req.Username)
-		}
-	} else {
-		// 否则用 email 查找
-		user, err = h.userRepo.GetByEmail(c.Request.Context(), req.Email)
+	// 先尝试按手机号查找（输入为纯数字且长度合适时）
+	if h.smsService.IsValidPhone(account) {
+		user, err = h.userRepo.GetByPhone(c.Request.Context(), account)
+	}
+
+	// 未命中则按昵称查找
+	if user == nil && err == nil {
+		user, err = h.userRepo.GetByNickname(c.Request.Context(), account)
 	}
 
 	if err != nil || user == nil {
-		h.loginProtection.RecordFailedAttempt(identifier, ip)
-		h.auditLogger.Log("login_failed", "", identifier, map[string]interface{}{"reason": "user_not_found"}, c)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		h.loginProtection.RecordFailedAttempt(account, ip)
+		h.auditLogger.Log("login_failed", "", account, map[string]interface{}{"reason": "user_not_found"}, c)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "账号或密码错误"})
 		return
 	}
 
-	// 验证密码
+	// 验证密码（短信自动注册用户可能无密码）
+	if user.HashedPassword == "" {
+		h.loginProtection.RecordFailedAttempt(account, ip)
+		h.auditLogger.Log("login_failed", "", account, map[string]interface{}{"reason": "no_password_set"}, c)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "该账号未设置密码，请使用短信验证码登录"})
+		return
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
-		h.loginProtection.RecordFailedAttempt(identifier, ip)
-		h.auditLogger.Log("login_failed", "", identifier, map[string]interface{}{"reason": "invalid_password"}, c)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		h.loginProtection.RecordFailedAttempt(account, ip)
+		h.auditLogger.Log("login_failed", "", account, map[string]interface{}{"reason": "invalid_password"}, c)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "账号或密码错误"})
 		return
 	}
 
 	// 登录成功，清除失败记录
-	h.loginProtection.ClearAttempts(req.Email, ip)
+	h.loginProtection.ClearAttempts(account, ip)
 
 	// 生成Token
-	accessToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.AccessTokenExpire)
-	if err != nil {
+	if err := h.generateAndSetTokens(c, user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
 		return
 	}
 
-	refreshToken, err := middleware.GenerateToken(user, h.cfg.SecretKey, h.cfg.JWT.RefreshTokenExpire)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器繁忙，请稍后重试"})
-		return
-	}
-
-	h.auditLogger.Log("login_success", user.ID.String(), user.Email, nil, c)
-
-	// 设置 httpOnly Cookie
-	h.setTokenCookie(c, "access_token", accessToken, 14 * 24 * 60 * 60)
-	h.setTokenCookie(c, "refresh_token", refreshToken, int(h.cfg.JWT.RefreshTokenExpire.Seconds()))
-
-	c.JSON(http.StatusOK, TokenResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    14 * 24 * 60 * 60,
-		User: UserInfo{
-			ID:          user.ID.String(),
-			Email:       user.Email,
-			Username:    user.Username,
-			Nickname:    user.Nickname,
-			Phone:       user.Phone,
-			AvatarURL:   user.AvatarURL,
-			VIPLevel:    user.VIPLevel,
-			VIPTier:     user.VIPTier(),
-			IsVIP:       user.IsVIP(),
-			IsSuperuser: user.IsSuperuser,
-		},
-	})
+	h.auditLogger.Log("login_success", user.ID.String(), user.Phone, nil, c)
 }
 
 // setTokenCookie 设置 httpOnly Cookie
@@ -423,8 +388,6 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 
 	c.JSON(http.StatusOK, UserInfo{
 		ID:          user.ID.String(),
-		Email:       user.Email,
-		Username:    user.Username,
 		Nickname:    user.Nickname,
 		Phone:       user.Phone,
 		AvatarURL:   user.AvatarURL,
@@ -669,7 +632,6 @@ func (h *AuthHandler) findOrCreateUserByPhone(ctx context.Context, phone string)
 	maskedPhone := phone[:3] + "****" + phone[7:]
 	user = &model.User{
 		Phone:          phone,
-		Username:       phone,
 		Nickname:       maskedPhone,
 		RegisterSource: "phone",
 		IsActive:       true,
@@ -886,8 +848,6 @@ func (h *AuthHandler) generateAndSetTokens(c *gin.Context, user *model.User) err
 		ExpiresIn:    14 * 24 * 60 * 60,
 		User: UserInfo{
 			ID:          user.ID.String(),
-			Email:       user.Email,
-			Username:    user.Username,
 			Nickname:    user.Nickname,
 			AvatarURL:   user.AvatarURL,
 			VIPLevel:    user.VIPLevel,

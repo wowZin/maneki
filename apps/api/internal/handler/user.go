@@ -86,35 +86,29 @@ type ListUsersRequest struct {
 
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	Username    string `json:"username" binding:"required,min=3,max=50"`
-	Password    string `json:"password" binding:"required,min=6"`
-	Nickname    string `json:"nickname"`
-	Phone       string `json:"phone"`
+	Nickname    string `json:"nickname" binding:"required,min=2,max=20"`
+	Phone       string `json:"phone" binding:"required"`
+	Password    string `json:"password" binding:"required,min=8"`
 	IsSuperuser bool   `json:"is_superuser"`
 	IsActive    bool   `json:"is_active"`
 }
 
 // UpdateUserRequest 更新用户请求
 type UpdateUserRequest struct {
-	Email       string `json:"email" binding:"omitempty,email"`
-	Username    string `json:"username" binding:"omitempty,min=3,max=50"`
-	Nickname    string `json:"nickname"`
-	Phone       string `json:"phone"`
+	Nickname    string `json:"nickname" binding:"omitempty,min=2,max=20"`
+	Phone       string `json:"phone" binding:"omitempty"`
 	IsSuperuser *bool  `json:"is_superuser"`
 	IsActive    *bool  `json:"is_active"`
 }
 
 // ResetPasswordRequest 重置密码请求
 type ResetPasswordRequest struct {
-	NewPassword string `json:"new_password" binding:"required,min=6"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
 // UserResponse 用户响应（不包含敏感信息）
 type UserResponse struct {
 	ID             string          `json:"id"`
-	Email          string          `json:"email"`
-	Username       string          `json:"username"`
 	Nickname       string          `json:"nickname"`
 	Phone          string          `json:"phone"`
 	AvatarURL      string          `json:"avatar_url"`
@@ -307,24 +301,22 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	user, err := h.userSvc.CreateUser(c.Request.Context(), &service.CreateUserRequest{
-		Email:       req.Email,
-		Username:    req.Username,
-		Password:    req.Password,
 		Nickname:    req.Nickname,
 		Phone:       req.Phone,
+		Password:    req.Password,
 		IsSuperuser: req.IsSuperuser,
 		IsActive:    req.IsActive,
 	})
 	if err != nil {
-		if err.Error() == "email already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		if err.Error() == "phone already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "该手机号已被注册"})
 			return
 		}
-		if err.Error() == "username already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
+		if err.Error() == "nickname already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "该昵称已被使用"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户失败"})
 		return
 	}
 
@@ -348,8 +340,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	user, err := h.userSvc.UpdateUser(c.Request.Context(), id, &service.UpdateUserRequest{
-		Email:       req.Email,
-		Username:    req.Username,
 		Nickname:    req.Nickname,
 		Phone:       req.Phone,
 		IsSuperuser: req.IsSuperuser,
@@ -357,22 +347,22 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	})
 	if err != nil {
 		if err.Error() == "user not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 			return
 		}
 		if err.Error() == "cannot remove the last superuser" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove the last superuser"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "不能移除最后一个超级管理员"})
 			return
 		}
-		if err.Error() == "email already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		if err.Error() == "phone already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "该手机号已被注册"})
 			return
 		}
-		if err.Error() == "username already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
+		if err.Error() == "nickname already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "该昵称已被使用"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户失败"})
 		return
 	}
 
@@ -447,7 +437,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	if h.auditSvc != nil {
 		adminID, _ := middleware.GetCurrentAdminID(c)
 		adminName, _ := middleware.GetCurrentAdminName(c)
-		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, model.AuditActionResetUserPassword, model.AuditTargetUser, nil, user.Username, "")
+		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, model.AuditActionResetUserPassword, model.AuditTargetUser, nil, user.Nickname, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
@@ -501,7 +491,7 @@ func (h *UserHandler) ToggleUserStatus(c *gin.Context) {
 		} else {
 			auditAction = model.AuditActionDisableUser
 		}
-		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, auditAction, model.AuditTargetUser, nil, user.Username, "")
+		_ = h.auditSvc.RecordAuditLog(c.Request.Context(), adminID, adminName, auditAction, model.AuditTargetUser, nil, user.Nickname, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -514,8 +504,6 @@ func (h *UserHandler) ToggleUserStatus(c *gin.Context) {
 func (h *UserHandler) userToResponse(user *model.User) UserResponse {
 	resp := UserResponse{
 		ID:             user.ID.String(),
-		Email:          user.Email,
-		Username:       user.Username,
 		Nickname:       user.Nickname,
 		Phone:          user.Phone,
 		AvatarURL:      user.AvatarURL,
@@ -570,6 +558,7 @@ func (h *UserHandler) GetUserStats(c *gin.Context) {
 	VIPLevelName  string  `json:"vip_level_name"`
 	VIPLevelColor string  `json:"vip_level_color"`
 	VIPExpireAt   *string `json:"vip_expire_at,omitempty"`
+	HasPassword   bool    `json:"has_password"`
 	CreatedAt     string  `json:"created_at"`
 }
 
@@ -613,6 +602,7 @@ func (h *UserHandler) GetMeProfile(c *gin.Context) {
 		VIPLevel:      user.VIPLevel,
 		VIPLevelName:  h.vipLevelToLabel(user.VIPLevel),
 		VIPLevelColor: h.vipLevelToColor(user.VIPLevel),
+		HasPassword:   user.HashedPassword != "",
 		CreatedAt:     user.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 	if user.VIPExpireAt != nil {
@@ -794,8 +784,8 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 // ChangePasswordRequest 修改密码请求
 type ChangePasswordRequest struct {
-	OldPassword     string `json:"old_password" binding:"required"`
-	NewPassword     string `json:"new_password" binding:"required,min=6"`
+	OldPassword     string `json:"old_password"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 }
 
@@ -815,7 +805,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数校验失败：新密码至少6位"})
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数校验失败：新密码至少8位，需包含字母和数字"})
 		return
 	}
 
@@ -836,10 +826,12 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	// 验证旧密码
-	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.OldPassword)); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "旧密码错误"})
-		return
+	// 验证旧密码（仅当用户已设置过密码时）
+	if user.HashedPassword != "" {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.OldPassword)); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "旧密码错误"})
+			return
+		}
 	}
 
 	// 更新密码

@@ -1,226 +1,76 @@
-# Data Model: 用户手机号登录（号码认证 + 短信验证码）
+# Data Model: 用户认证体系
 
-**Feature**: 用户手机号登录
-**Date**: 2026-04-22
+## Entity: User (用户)
 
-## 说明
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | UUID | PK, auto-gen | 系统内部唯一标识 |
+| `phone` | string(20) | **UNIQUE**, not null | 手机号，唯一标识，登录凭证 |
+| `nickname` | string(100) | **UNIQUE**, not null | 昵称/名称，全局唯一，展示+登录凭证 |
+| `hashed_password` | string(255) | nullable | bcrypt 哈希密码（短信自动注册用户初始为空） |
+| `avatar_url` | string(500) | nullable | 头像 URL |
+| `is_active` | bool | default: true | 账户是否启用 |
+| `is_superuser` | bool | default: false | 是否超级用户 |
+| `register_source` | string(20) | default: 'phone' | 注册来源: 'phone'(短信自动), 'password'(显式注册) |
+| `vip_level` | int | default: 0 | VIP 等级 |
+| `created_at` | timestamp | auto | 创建时间 |
+| `updated_at` | timestamp | auto | 更新时间 |
+| `deleted_at` | timestamp | nullable, index | 软删除 |
 
-本功能不引入新的持久化数据库实体。用户数据复用现有的 `users` 表。
+### 变更说明（相对于当前模型）
 
-- **号码认证流程**：全程通过阿里云 OpenAPI + SDK 交互，无本地持久化状态
-- **短信验证码流程**：验证码和频率限制数据存储在 Redis 中（临时数据，有过期时间）
+- **移除**: `email` 的唯一约束（保留字段兼容存量数据，但不再用于注册和登录）
+- **移除**: `username` 的唯一约束（保留字段兼容存量数据，用户端不再使用）
+- **移除**: `full_name`（被 `nickname` 统一替代）
+- **变更**: `nickname` 添加 **UNIQUE** 约束，不再允许重复
+- **新增**: `register_source` 枚举扩展为包含 `'password'`
+- **保留**: 所有微信相关字段、VIP 字段不变
 
-## 现有实体变更
+### 索引
 
-### User（users 表）
+```sql
+-- 唯一索引
+CREATE UNIQUE INDEX idx_users_phone ON users(phone);
+CREATE UNIQUE INDEX idx_users_nickname ON users(nickname);
 
-已有实体，以下字段与本功能相关：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | uuid | 主键，自动生成的 UUID |
-| `username` | string(50) | 用户名。注册时必填，全局唯一，只能包含字母/数字/下划线 |
-| `email` | string(100) | 邮箱。可选，用于账号密码登录时的备选登录名 |
-| `phone` | string(20) | 手机号。可选，但注册/绑定后需确保唯一性 |
-| `password_hash` | string(255) | bcrypt 哈希后的密码。短信验证码自动注册的用户此字段为空 |
-| `register_source` | string(20) | 注册来源：`"phone"` (短信/号码认证) / `"form"` (注册表单) |
-| `nickname` | string(100) | 昵称。自动注册时默认隐藏版手机号，如 "138****8000" |
-| `full_name` | string(100) | 真实姓名。可选 |
-| `avatar_url` | string(255) | 头像 URL。可选 |
-| `is_active` | bool | 是否启用。自动注册设为 `true` |
-| `is_verified` | bool | 是否已验证。邮箱/手机验证通过后设为 `true` |
-| `vip_level` | int | VIP 等级。自动注册设为 `0` |
-| `vip_tier` | string(20) | VIP 等级标识。如 `"basic"`, `"vip"`, `"svip"` |
-| `last_login_at` | timestamp | 最后登录时间 |
-| `created_at` | timestamp | 创建时间 |
-| `updated_at` | timestamp | 更新时间 |
-
-**变更建议**：
-- 为 `phone` 字段增加唯一索引（当 phone 不为空时），确保同一手机号只能对应一个账户
-- 为 `username` 字段增加唯一索引，确保用户名全局唯一
-- `password_hash` 允许为空：短信验证码自动注册的用户无需设置密码，后续可在个人中心补充
-- 注意：现有数据可能已有重复 phone/username，需先清理或仅在新增时约束
-
-## 新增状态流转
-
-### 注册表单流程（独立注册页）
-
-```
-用户进入注册页面
-    │
-    ▼
-┌─────────────────────┐
-│ 填写用户名、邮箱、密码、确认密码 │
-│ 前端校验格式和复杂度            │
-└─────────────────────┘
-    │
-    ▼
-后端接收注册请求
-    │
-    ▼
-┌─────────────────────┐
-│ 校验用户名唯一性     │ ── 重复 ──▶ 提示"用户名已被使用"
-│ 校验邮箱唯一性       │ ── 重复 ──▶ 提示"邮箱已被注册"
-└─────────────────────┘
-    │ 通过
-    ▼
-┌─────────────────────┐
-│ bcrypt 哈希密码      │
-│ 创建用户记录         │
-│ register_source = "form" │
-└─────────────────────┘
-    │
-    ▼
-┌─────────────────────┐
-│ 生成 JWT             │
-│ 自动登录             │
-│ 跳转首页             │
-└─────────────────────┘
+-- 兼容索引（保留但不再用于新逻辑）
+CREATE INDEX idx_users_email ON users(email);  -- 原为 unique
+CREATE INDEX idx_users_username ON users(username);  -- 原为 unique
 ```
 
-### 忘记密码流程
+## Entity: VerificationCode (验证码)
+
+存储于 Redis，非持久化数据库表。
+
+| Key Pattern | Value | TTL |
+|-------------|-------|-----|
+| `sms:code:{phone}` | 6位数字字符串 | 300s (5分钟) |
+| `sms:limit:phone:{phone}` | 请求计数 | 60s |
+| `sms:limit:ip:{ip}` | 请求计数 | 60s |
+
+## State Transitions
 
 ```
-用户进入忘记密码页面
-    │
-    ▼
-输入手机号 → 获取验证码
-    │
-    ▼
-后端校验验证码（复用短信登录的 Redis 逻辑）
-    │
-    ▼
-输入新密码 → 确认新密码
-    │
-    ▼
-后端校验密码复杂度 → bcrypt 哈希 → 更新 password_hash
-    │
-    ▼
-提示"密码重置成功" → 自动登录 → 跳转首页
+未注册手机号
+  | 短信验证码登录
+  v
+自动创建 User (phone, auto-nickname, no password)
+  |
+  |--> 设置密码 --> 可用密码登录
+  |
+  |--> 继续短信登录
+
+显式注册
+  | 填写 name + phone + password
+  v
+创建 User (phone, nickname, hashed_password)
+  |
+  |--> 密码登录
+  |--> 短信验证码登录
 ```
 
-## Redis 数据结构
+## Validation Rules
 
-> 以下仅在使用「短信验证码 fallback」时生效。号码认证流程不依赖 Redis。
-
-### 验证码记录
-
-```
-Key:     sms:login:{phone}
-Value:   {6位数字验证码}  (string)
-TTL:     300 seconds (5 minutes)
-```
-
-**说明**：发送验证码时写入，验证成功后立即删除（或等待 TTL 自动过期）。
-
-### 发送频率限制（手机号维度）
-
-```
-Key:     sms:limit:phone:{phone}
-Value:   1  (string)
-TTL:     60 seconds
-```
-
-**说明**：每次发送前检查该 Key 是否存在。存在则拒绝发送并提示 "请稍后再试"。
-
-### 发送频率限制（IP 维度）
-
-```
-Key:     sms:limit:ip:{ip}
-Value:   计数器  (integer，使用 INCR)
-TTL:     60 seconds
-```
-
-**说明**：每分钟最多 10 次。超过则拒绝并提示 "操作过于频繁"。
-
-## 状态流转
-
-### 主流程：号码认证（本机号码校验）
-
-```
-用户进入手机号登录页面
-    │
-    ▼
-┌─────────────────────┐
-│ 前端初始化 SDK       │
-│ 调用 checkAuthAvailable │
-└─────────────────────┘
-    │
-    ├─ 不支持 ──▶ 降级到短信验证码流程 ──▶ [见下方 fallback 流程]
-    │
-    ▼ 支持
-┌─────────────────────┐
-│ 后端调用 GetAuthToken │
-│ 返回 accessToken + jwtToken 给前端 │
-└─────────────────────┘
-    │
-    ▼
-┌─────────────────────┐
-│ 前端调用 getVerifyToken │
-│ 获取 spToken         │
-└─────────────────────┘
-    │
-    ▼
-用户输入手机号，前端提交 spToken + phone 给后端
-    │
-    ▼
-┌─────────────────────┐
-│ 后端调用 VerifyPhoneWithToken │
-│ 阿里云返回校验结果   │
-└─────────────────────┘
-    │
-    ├─ 失败 ──▶ 提示"手机号验证失败，请检查后重试"
-    │
-    ▼ 成功
-┌─────────────────────┐
-│ 查用户是否存在       │
-└─────────────────────┘
-    │
-    ├─ 不存在 ──▶ 自动创建用户 ──┐
-    │                            │
-    └─ 存在 ─────────────────────┘
-                                 │
-                                 ▼
-                    ┌─────────────────────┐
-                    │ 生成 JWT (access + refresh)
-                    │ 设置 httpOnly Cookie
-                    │ 返回 Token + 用户信息
-                    └─────────────────────┘
-```
-
-### Fallback 流程：短信验证码
-
-```
-前端检测到号码认证不可用
-    │
-    ▼
-用户输入手机号
-    │
-    ▼
-┌─────────────────────┐
-│ 格式校验             │ ── 失败 ──▶ 提示"请输入有效的手机号"
-└─────────────────────┘
-    │ 通过
-    ▼
-┌─────────────────────┐
-│ 频率检查             │ ── 超限 ──▶ 提示"请X秒后再试"
-└─────────────────────┘
-    │ 通过
-    ▼
-┌─────────────────────┐
-│ 生成6位验证码        │
-│ 写入 Redis           │
-│ 调用阿里云短信接口    │ ── 失败 ──▶ 提示"短信发送失败"
-└─────────────────────┘
-    │ 成功
-    ▼
-用户收到短信，输入验证码
-    │
-    ▼
-┌─────────────────────┐
-│ 验证码校验           │ ── 失败/过期 ──▶ 提示"验证码错误或已过期"
-└─────────────────────┘
-    │ 通过
-    ▼
-    [后续与主流程相同：查用户 → 自动注册/登录 → 发 JWT]
-```
+- `phone`: 中国大陆手机号格式（1[3-9] 开头，11位数字）
+- `nickname`: 2-20 个字符，仅允许中文、字母、数字、下划线，全局唯一
+- `password`: 最少 8 位，必须同时包含字母和数字

@@ -77,6 +77,19 @@ func (r *UserRepository) GetByPhone(ctx context.Context, phone string) (*model.U
 	return &user, nil
 }
 
+// GetByNickname 根据昵称获取用户
+func (r *UserRepository) GetByNickname(ctx context.Context, nickname string) (*model.User, error) {
+	var user model.User
+	err := r.db.WithContext(ctx).First(&user, "nickname = ?", nickname).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetByWechatUnionID 根据微信UnionID获取用户
 func (r *UserRepository) GetByWechatUnionID(ctx context.Context, unionID string) (*model.User, error) {
 	var user model.User

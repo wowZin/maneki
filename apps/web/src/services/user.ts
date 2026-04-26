@@ -13,6 +13,7 @@ export interface UserProfile {
   vip_level_name: string
   vip_level_color: string
   vip_expire_at: string | null
+  has_password: boolean
   created_at: string
 }
 

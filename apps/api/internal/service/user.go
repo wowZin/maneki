@@ -73,27 +73,25 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*model.User, e
 
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Email       string
-	Username    string
-	Password    string
 	Nickname    string
 	Phone       string
+	Password    string
 	IsSuperuser bool
 	IsActive    bool
 }
 
 // CreateUser 创建用户
 func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*model.User, error) {
-	// 检查邮箱是否已存在
-	existingUser, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	// 检查手机号是否已存在
+	existingUser, _ := s.userRepo.GetByPhone(ctx, req.Phone)
 	if existingUser != nil {
-		return nil, fmt.Errorf("email already exists")
+		return nil, fmt.Errorf("phone already exists")
 	}
 
-	// 检查用户名是否已存在
-	existingUser, _ = s.userRepo.GetByUsername(ctx, req.Username)
+	// 检查昵称是否已存在
+	existingUser, _ = s.userRepo.GetByNickname(ctx, req.Nickname)
 	if existingUser != nil {
-		return nil, fmt.Errorf("username already exists")
+		return nil, fmt.Errorf("nickname already exists")
 	}
 
 	// 加密密码
@@ -103,8 +101,6 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 	}
 
 	user := &model.User{
-		Email:          req.Email,
-		Username:       req.Username,
 		Nickname:       req.Nickname,
 		Phone:          req.Phone,
 		HashedPassword: string(hashedPassword),
@@ -124,8 +120,6 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 
 // UpdateUserRequest 更新用户请求
 type UpdateUserRequest struct {
-	Email       string
-	Username    string
 	Nickname    string
 	Phone       string
 	IsSuperuser *bool
@@ -153,30 +147,24 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, req *UpdateU
 		}
 	}
 
-	// 如果修改邮箱，检查是否已存在
-	if req.Email != "" && req.Email != user.Email {
-		existingUser, _ := s.userRepo.GetByEmail(ctx, req.Email)
+	// 如果修改手机号，检查是否已存在
+	if req.Phone != "" && req.Phone != user.Phone {
+		existingUser, _ := s.userRepo.GetByPhone(ctx, req.Phone)
 		if existingUser != nil {
-			return nil, fmt.Errorf("email already exists")
+			return nil, fmt.Errorf("phone already exists")
 		}
-		user.Email = req.Email
-	}
-
-	// 如果修改用户名，检查是否已存在
-	if req.Username != "" && req.Username != user.Username {
-		existingUser, _ := s.userRepo.GetByUsername(ctx, req.Username)
-		if existingUser != nil {
-			return nil, fmt.Errorf("username already exists")
-		}
-		user.Username = req.Username
-	}
-
-	if req.Nickname != "" {
-		user.Nickname = req.Nickname
-	}
-	if req.Phone != "" {
 		user.Phone = req.Phone
 	}
+
+	// 如果修改昵称，检查是否已存在
+	if req.Nickname != "" && req.Nickname != user.Nickname {
+		existingUser, _ := s.userRepo.GetByNickname(ctx, req.Nickname)
+		if existingUser != nil {
+			return nil, fmt.Errorf("nickname already exists")
+		}
+		user.Nickname = req.Nickname
+	}
+
 	if req.IsSuperuser != nil {
 		user.IsSuperuser = *req.IsSuperuser
 	}
