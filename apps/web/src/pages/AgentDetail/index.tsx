@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Button, Tag, Rate, Typography, Space, Spin, Empty, message, Row, Col, Descriptions } from 'antd'
-import { ArrowLeftOutlined, RocketOutlined, CrownOutlined, StarOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, RocketOutlined, CrownOutlined, StarOutlined, CheckCircleOutlined, ThunderboltOutlined, HistoryOutlined } from '@ant-design/icons'
 import { marketplaceApi } from '../../services/marketplace'
 import { useAuthStore } from '../../stores/auth'
 import type { AgentDetailResponse } from '../../services/marketplace'
@@ -32,7 +32,7 @@ const typeColors: Record<string, string> = {
 const AgentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
   const [agent, setAgent] = useState<AgentDetailResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
@@ -167,9 +167,21 @@ const AgentDetail: React.FC = () => {
           <Card className="glass-card" style={{ position: 'sticky', top: 24 }}>
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
               {agent.is_subscribed ? (
-                <Button type="primary" block disabled icon={<CheckCircleOutlined />}>
-                  已订阅
-                </Button>
+                <>
+                  <Button type="primary" block disabled icon={<CheckCircleOutlined />}>
+                    已订阅
+                  </Button>
+                  {isAuthenticated && (user?.vip_level || 0) >= 1 && (
+                    <Button
+                      block
+                      icon={<HistoryOutlined />}
+                      onClick={() => navigate(`/replay?agent_id=${agent.id}`)}
+                      style={{ marginTop: 8 }}
+                    >
+                      回测
+                    </Button>
+                  )}
+                </>
               ) : showSubscribeButton ? (
                 <Button type="primary" block loading={subscribing} onClick={handleSubscribe}>
                   {subscribeText}

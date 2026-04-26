@@ -366,7 +366,6 @@ body {
 .tech-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 12px;
   height: 72px;
   padding: 0 20px;
