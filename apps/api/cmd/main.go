@@ -67,6 +67,7 @@ func main() {
 	rebateAuditLogRepo := repository.NewRebateAuditLogRepository(db)
 	overviewRepo := repository.NewOverviewRepository(db)
 	signalRepo := repository.NewSignalRepository(db)
+	backtestRepo := repository.NewBacktestRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -83,6 +84,7 @@ func main() {
 	overviewSvc := service.NewOverviewService(overviewRepo, redisClient)
 	signalSvc := service.NewSignalService(signalRepo, overviewRepo)
 	marketplaceSvc := service.NewMarketplaceService(agentRepo, subscriptionRepo, userRepo)
+	backtestSvc := service.NewBacktestService(backtestRepo, agentRepo, subscriptionRepo, userRepo)
 
 	// 初始化短信/号码认证服务
 	smsSvc, err := service.NewSMSService(&cfg.SMS, redisClient)
@@ -110,6 +112,7 @@ func main() {
 	pricingHandler := handler.NewPricingHandler()
 	overviewHandler := handler.NewOverviewHandler(overviewSvc)
 	signalHandler := handler.NewSignalHandler(signalSvc)
+	backtestHandler := handler.NewBacktestHandler(backtestSvc)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -218,6 +221,12 @@ func main() {
 			// 系统通知（用户端）
 			auth.GET("/notifications", sysNotificationHandler.ListUser)
 			auth.GET("/notifications/:id", sysNotificationHandler.GetUser)
+
+			// 回测（VIP专享）
+			auth.GET("/backtests", middleware.VIPAuthMiddleware(), backtestHandler.ListBacktests)
+			auth.POST("/backtests", middleware.VIPAuthMiddleware(), backtestHandler.CreateBacktest)
+			auth.GET("/backtests/:id", middleware.VIPAuthMiddleware(), backtestHandler.GetBacktest)
+			auth.GET("/backtests/:id/progress", middleware.VIPAuthMiddleware(), backtestHandler.GetBacktestProgress)
 		}
 
 		// 管理后台认证路由
@@ -375,6 +384,11 @@ func main() {
 	settlementScheduler.Start()
 	defer settlementScheduler.Stop()
 
+	// 启动回测任务调度器
+	backtestScheduler := scheduler.NewBacktestScheduler(backtestRepo, backtestSvc)
+	backtestScheduler.Start()
+	defer backtestScheduler.Stop()
+
 	// 创建HTTP服务器
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -448,6 +462,9 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.RebateRecord{},
 		&model.AntiArbitrageRule{},
 		&model.RebateAuditLog{},
+		&model.BacktestJob{},
+		&model.BacktestResult{},
+		&model.BacktestDayResult{},
 	}
 
 	for _, m := range models {
