@@ -8,12 +8,13 @@ import (
 
 // UserStockTracking 用户股票追踪表
 type UserStockTracking struct {
-	ID         uint      `json:"id" gorm:"primaryKey"`
-	UserID     uuid.UUID `json:"user_id" gorm:"type:uuid;index:idx_user_track_date;not null"`
-	StockCode  string    `json:"stock_code" gorm:"size:20;index;not null"`
-	TrackDate  time.Time `json:"track_date" gorm:"type:date;index:idx_user_track_date;not null"`
-	HitStatus  *bool     `json:"hit_status,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;index:idx_user_track_date;not null"`
+	StockCode string    `json:"stock_code" gorm:"size:20;index;not null"`
+	TrackDate time.Time `json:"track_date" gorm:"type:date;index:idx_user_track_date;not null"`
+	HitStatus *bool     `json:"hit_status,omitempty"`
+	SignalID  *uint     `json:"signal_id,omitempty" gorm:"index"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (UserStockTracking) TableName() string {

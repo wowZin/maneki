@@ -6,11 +6,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton, Empty, message } from 'antd'
-import {
-  RocketOutlined,
-  SafetyOutlined,
-  SyncOutlined,
-} from '@ant-design/icons'
 import { useAuthStore } from '../../stores/auth'
 import {
   pricingApi,
@@ -241,34 +236,6 @@ const Pricing: React.FC = () => {
               />
             )
           })}
-        </div>
-
-        {/* 底部 FAQ */}
-        <div className={styles.faqSection}>
-          <h3 className={styles.faqTitle}>常见问题</h3>
-          <div className={styles.faqGrid}>
-            <div className={styles.faqCard}>
-              <div className={styles.faqIcon} style={{ background: 'rgba(5,150,105,0.1)', color: '#059669' }}>
-                <SafetyOutlined />
-              </div>
-              <div className={styles.faqCardTitle}>安全支付</div>
-              <div className={styles.faqCardDesc}>支持支付宝、微信支付，银行级安全加密</div>
-            </div>
-            <div className={styles.faqCard}>
-              <div className={styles.faqIcon} style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
-                <RocketOutlined />
-              </div>
-              <div className={styles.faqCardTitle}>7天无理由退款</div>
-              <div className={styles.faqCardDesc}>购买后7天内不满意可申请全额退款</div>
-            </div>
-            <div className={styles.faqCard}>
-              <div className={styles.faqIcon} style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                <SyncOutlined />
-              </div>
-              <div className={styles.faqCardTitle}>灵活升级</div>
-              <div className={styles.faqCardDesc}>随时升级或降级会员，按比例计算差价</div>
-            </div>
-          </div>
         </div>
 
         {/* 底部说明 */}

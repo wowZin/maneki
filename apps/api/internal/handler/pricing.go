@@ -132,5 +132,5 @@ func (h *PricingHandler) GetPricingConfig(c *gin.Context) {
 		},
 	}
 
-	c.JSON(http.StatusOK, config)
+	c.JSON(http.StatusOK, gin.H{"data": config})
 }

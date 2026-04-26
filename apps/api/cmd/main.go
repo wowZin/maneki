@@ -66,6 +66,7 @@ func main() {
 	antiArbitrageRepo := repository.NewAntiArbitrageRuleRepository(db)
 	rebateAuditLogRepo := repository.NewRebateAuditLogRepository(db)
 	overviewRepo := repository.NewOverviewRepository(db)
+	signalRepo := repository.NewSignalRepository(db)
 
 	// 初始化数据源
 	dataProvider := initDataProvider(cfg, db, redisClient)
@@ -80,6 +81,7 @@ func main() {
 	antiArbitrageSvc := service.NewAntiArbitrageService(antiArbitrageRepo)
 	rebateStatsSvc := service.NewRebateStatsService(rebateRecordRepo)
 	overviewSvc := service.NewOverviewService(overviewRepo, redisClient)
+	signalSvc := service.NewSignalService(signalRepo, overviewRepo)
 	marketplaceSvc := service.NewMarketplaceService(agentRepo, subscriptionRepo, userRepo)
 
 	// 初始化短信/号码认证服务
@@ -107,6 +109,7 @@ func main() {
 	rebateStatsHandler := handler.NewRebateStatsHandler(rebateStatsSvc)
 	pricingHandler := handler.NewPricingHandler()
 	overviewHandler := handler.NewOverviewHandler(overviewSvc)
+	signalHandler := handler.NewSignalHandler(signalSvc)
 
 	// 创建Gin路由
 	r := gin.New()
@@ -173,6 +176,9 @@ func main() {
 		v1.GET("/overview/hot-stocks", overviewHandler.GetHotStocks)
 		v1.GET("/overview/realtime-signals", overviewHandler.GetRealtimeSignals)
 
+		// 信号中心公开路由
+		v1.GET("/signals", signalHandler.GetSignals)
+
 		// 需要认证的路由
 		auth := v1.Group("/")
 		auth.Use(middleware.AuthMiddleware(cfg))
@@ -191,6 +197,12 @@ func main() {
 			// 首页概览 — 用户个性化数据（需认证）
 			auth.GET("/overview/user-tracking-trend", overviewHandler.GetUserTrackingTrend)
 			auth.GET("/overview/user-tracking-detail", overviewHandler.GetUserTrackingDetail)
+
+			// 信号中心认证路由
+			auth.POST("/signals/:id/follow", signalHandler.FollowSignal)
+			auth.DELETE("/signals/:id/follow", signalHandler.UnfollowSignal)
+			auth.GET("/signals/my-follows", signalHandler.GetMyFollows)
+			auth.GET("/signals/my-stats", signalHandler.GetMyStats)
 
 			// Agent权重
 			auth.GET("/agents/weights/my", agentHandler.GetMyAgentWeights)

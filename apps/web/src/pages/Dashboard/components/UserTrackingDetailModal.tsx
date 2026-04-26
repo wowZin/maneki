@@ -91,7 +91,7 @@ const UserTrackingDetailModal: React.FC<UserTrackingDetailModalProps> = ({ visib
         </div>
       ) : error ? (
         <Empty description={error} />
-      ) : data.length === 0 ? (
+      ) : !data || data.length === 0 ? (
         <Empty description="当日无追踪记录" />
       ) : (
         <Table
