@@ -130,6 +130,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user := &model.User{
 		Nickname:       req.Nickname,
 		Phone:          req.Phone,
+		Email:          req.Phone + "@test.local",
+		Username:       req.Phone,
 		HashedPassword: string(hashedPassword),
 		RegisterSource: "password",
 		IsActive:       true,
@@ -849,6 +851,7 @@ func (h *AuthHandler) generateAndSetTokens(c *gin.Context, user *model.User) err
 		User: UserInfo{
 			ID:          user.ID.String(),
 			Nickname:    user.Nickname,
+			Phone:       user.Phone,
 			AvatarURL:   user.AvatarURL,
 			VIPLevel:    user.VIPLevel,
 			VIPTier:     user.VIPTier(),

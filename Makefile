@@ -1,7 +1,8 @@
 .PHONY: help \
 	restart-api restart-data restart-web restart-db restart-redis restart-infra restart-all \
 	stop-api stop-data stop-web stop-db stop-redis stop-all \
-	start-api start-data start-web start-db start-redis start-infra start-all
+	start-api start-data start-web start-db start-redis start-infra start-all \
+	test-go test-go-unit test-go-integration
 
 API_PORT     ?= 8080
 DATA_PORT    ?= 8001
@@ -119,3 +120,23 @@ restart-redis:
 restart-infra: restart-db restart-redis
 
 restart-all: stop-api stop-data stop-web restart-infra start-api start-data start-web
+
+# ---------- Test ----------
+
+test-go:
+	@echo ">>> Starting test infrastructure..."
+	@docker compose -f infra/docker-compose.test.yml up -d
+	@sleep 3
+	@echo ">>> Running Go unit tests..."
+	@cd apps/api && go test ./internal/service/... ./pkg/... -v -count=1
+	@echo ">>> Running Go integration tests..."
+	@cd apps/api && go test ./internal/handler/... -tags=integration -v -count=1
+	@echo ">>> Tests completed."
+
+test-go-unit:
+	@cd apps/api && go test ./... -short -v -count=1
+
+test-go-integration:
+	@docker compose -f infra/docker-compose.test.yml up -d
+	@sleep 3
+	@cd apps/api && go test ./... -tags=integration -v -count=1

@@ -1,0 +1,17 @@
+import { test } from '@playwright/test'
+test('db2', async ({page})=>{
+  await page.goto('/login')
+  await page.locator('input[placeholder="账户名称"]').fill('superadmin')
+  await page.locator('input[placeholder="密码"]').fill('SuperPass123!')
+  await page.locator('button:has-text("登 录")').click()
+  await page.waitForURL(/\/$/)
+  await page.locator('text=Agent 管理').first().click()
+  await page.waitForURL(/\/agents/)
+  await page.waitForTimeout(2000)
+  const c=await page.locator('button').count()
+  console.log('btns:',c)
+  const t=await page.locator('button').allInnerTexts()
+  console.log('texts:',JSON.stringify(t))
+  const s=await page.locator('button:has-text("搜索")').count()
+  console.log('search count:',s)
+})

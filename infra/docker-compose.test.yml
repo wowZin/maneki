@@ -1,0 +1,53 @@
+# 测试专用基础设施
+# 使用独立端口，避免污染开发环境数据
+# 启动命令: docker compose -f infra/docker-compose.test.yml up -d
+
+services:
+  test-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: stock_test_timescaledb
+    environment:
+      POSTGRES_USER: stock
+      POSTGRES_PASSWORD: stock123
+      POSTGRES_DB: stock_test
+      TZ: Asia/Shanghai
+    ports:
+      - "5433:5432"
+    volumes:
+      - test_timescale_data:/var/lib/postgresql/data
+      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock -d stock_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  test-redis:
+    image: redis:7-alpine
+    container_name: stock_test_redis
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - test_redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  test_timescale_data:
+  test_redis_data:

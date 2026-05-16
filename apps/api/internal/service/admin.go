@@ -69,8 +69,8 @@ func (s *AdminService) ListAdmins(ctx context.Context, keyword string, page, pag
 	}, nil
 }
 
-// CreateAdmin 创建普通管理员（初始密码 111111）
-func (s *AdminService) CreateAdmin(ctx context.Context, name string) (*model.Admin, error) {
+// CreateAdmin 创建普通管理员（初始密码 111111，若提供 password 则使用提供的密码）
+func (s *AdminService) CreateAdmin(ctx context.Context, name, password string) (*model.Admin, error) {
 	// 验证名称
 	admin := &model.Admin{Name: name}
 	if !admin.ValidateName() {
@@ -86,8 +86,12 @@ func (s *AdminService) CreateAdmin(ctx context.Context, name string) (*model.Adm
 		return nil, fmt.Errorf("admin name already exists")
 	}
 
-	// 加密初始密码 111111
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("111111"), bcrypt.DefaultCost)
+	// 若未提供密码则使用默认初始密码 111111
+	initialPassword := password
+	if initialPassword == "" {
+		initialPassword = "111111"
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(initialPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}

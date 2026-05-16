@@ -142,14 +142,29 @@ func (h *BacktestHandler) CreateBacktest(c *gin.Context) {
 
 // GetBacktest 获取回测任务详情
 func (h *BacktestHandler) GetBacktest(c *gin.Context) {
+	userIDStr, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
 		return
 	}
 
-	job, result, days, err := h.backtestSvc.GetBacktestWithResult(c.Request.Context(), uint(id))
+	job, result, days, err := h.backtestSvc.GetBacktestWithResult(c.Request.Context(), uint(id), userID)
 	if err != nil {
+		if err.Error() == "FORBIDDEN" {
+			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"code": "FORBIDDEN", "message": "无权访问该回测任务"}})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "回测任务不存在"}})
 		return
 	}
@@ -214,14 +229,29 @@ func (h *BacktestHandler) GetBacktest(c *gin.Context) {
 
 // GetBacktestProgress 获取回测进度（轻量端点）
 func (h *BacktestHandler) GetBacktestProgress(c *gin.Context) {
+	userIDStr, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
 		return
 	}
 
-	job, err := h.backtestSvc.GetBacktest(c.Request.Context(), uint(id))
+	job, err := h.backtestSvc.GetBacktest(c.Request.Context(), uint(id), userID)
 	if err != nil {
+		if err.Error() == "FORBIDDEN" {
+			c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"code": "FORBIDDEN", "message": "无权访问该回测任务"}})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "回测任务不存在"}})
 		return
 	}

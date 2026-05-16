@@ -48,6 +48,9 @@ func (s *BacktestService) CreateBacktest(ctx context.Context, userID uuid.UUID, 
 	if err != nil {
 		return nil, fmt.Errorf("用户不存在")
 	}
+	if user == nil {
+		return nil, fmt.Errorf("用户不存在")
+	}
 	if !user.IsVIP() {
 		return nil, fmt.Errorf("VIP_REQUIRED")
 	}
@@ -73,7 +76,7 @@ func (s *BacktestService) CreateBacktest(ctx context.Context, userID uuid.UUID, 
 	if end.Before(start) {
 		return nil, fmt.Errorf("结束日期不能早于开始日期")
 	}
-	maxEnd := start.AddDate(0, 0, 14)
+	maxEnd := start.AddDate(0, 0, 13)
 	if end.After(maxEnd) {
 		return nil, fmt.Errorf("INVALID_DATE_RANGE")
 	}
@@ -113,9 +116,16 @@ func (s *BacktestService) ListUserBacktests(ctx context.Context, userID uuid.UUI
 	return s.backtestRepo.ListUserJobs(ctx, userID, limit, offset)
 }
 
-// GetBacktest 获取回测任务详情
-func (s *BacktestService) GetBacktest(ctx context.Context, id uint) (*model.BacktestJob, error) {
-	return s.backtestRepo.GetJobByID(ctx, id)
+// GetBacktest 获取回测任务详情（带用户权限校验）
+func (s *BacktestService) GetBacktest(ctx context.Context, id uint, userID uuid.UUID) (*model.BacktestJob, error) {
+	job, err := s.backtestRepo.GetJobByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if job.UserID != userID {
+		return nil, fmt.Errorf("FORBIDDEN")
+	}
+	return job, nil
 }
 
 // GetAgentName 获取Agent名称
@@ -123,11 +133,15 @@ func (s *BacktestService) GetAgentName(ctx context.Context, agentID uint) (strin
 	return s.backtestRepo.GetAgentNameByID(ctx, agentID)
 }
 
-// GetBacktestWithResult 获取回测任务及结果
-func (s *BacktestService) GetBacktestWithResult(ctx context.Context, id uint) (*model.BacktestJob, *model.BacktestResult, []model.BacktestDayResult, error) {
+// GetBacktestWithResult 获取回测任务及结果（带用户权限校验）
+func (s *BacktestService) GetBacktestWithResult(ctx context.Context, id uint, userID uuid.UUID) (*model.BacktestJob, *model.BacktestResult, []model.BacktestDayResult, error) {
 	job, err := s.backtestRepo.GetJobByID(ctx, id)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+
+	if job.UserID != userID {
+		return nil, nil, nil, fmt.Errorf("FORBIDDEN")
 	}
 
 	if job.Status != "completed" {

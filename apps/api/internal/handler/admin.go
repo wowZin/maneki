@@ -41,7 +41,8 @@ func (h *AdminMgmtHandler) ListAdmins(c *gin.Context) {
 
 // CreateAdminRequest 创建管理员请求
 type CreateAdminRequest struct {
-	Name string `json:"name" binding:"required,min=3,max=64"`
+	Name     string `json:"name" binding:"required,min=3,max=64"`
+	Password string `json:"password" binding:"omitempty,min=6"`
 }
 
 // CreateAdmin 创建普通管理员
@@ -52,7 +53,7 @@ func (h *AdminMgmtHandler) CreateAdmin(c *gin.Context) {
 		return
 	}
 
-	admin, err := h.adminSvc.CreateAdmin(c.Request.Context(), req.Name)
+	admin, err := h.adminSvc.CreateAdmin(c.Request.Context(), req.Name, req.Password)
 	if err != nil {
 		if err.Error() == "admin name already exists" {
 			c.JSON(http.StatusConflict, gin.H{"code": 1003, "message": "账户名称已存在"})

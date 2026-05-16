@@ -1,0 +1,15 @@
+import { test, expect } from '@playwright/test'
+test('db4', async ({page})=>{
+  await page.goto('/login')
+  await page.locator('input[placeholder="账户名称"]').fill('superadmin')
+  await page.locator('input[placeholder="密码"]').fill('SuperPass123!')
+  await page.locator('button:has-text("登 录")').click()
+  await expect(page).toHaveURL(/\/$/)
+  await page.locator('text=Agent 管理').first().click()
+  await expect(page).toHaveURL(/\/agents/)
+  await page.waitForTimeout(2000)
+  const c=await page.locator('button').count()
+  console.log('btns:',c)
+  const t=await page.locator('button').allInnerTexts()
+  console.log('texts:',JSON.stringify(t))
+})

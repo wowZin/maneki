@@ -40,6 +40,12 @@ lerna-debug.log*
 coverage/
 .nyc_output/
 
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -70,8 +76,13 @@ volumes/
 
 # Go binaries
 /apps/api/main
+/apps/api/cmd/api
 /apps/api/tmp/
+/apps/api/integration.test
 *.exe
+
+# Local scripts
+battery.txt
 
 # Misc
 .cache/

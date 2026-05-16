@@ -248,6 +248,9 @@ type CreateAgentRequest struct {
 	Price          float64    `json:"price"`
 	PriceType      string     `json:"price_type"`
 	StrategyConfig model.JSON `json:"strategy_config"`
+	IsActive       *bool      `json:"is_active"`
+	IsFeatured     *bool      `json:"is_featured"`
+	IsOfficial     *bool      `json:"is_official"`
 }
 
 // CreateAgent 创建Agent（需要登录）
@@ -387,6 +390,157 @@ func (h *AgentHandler) DeleteAgent(c *gin.Context) {
 
 	if agent.OwnerID != nil && agent.OwnerID.String() != userID.(string) && !isSuperuser.(bool) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "permission denied"})
+		return
+	}
+
+	if err := h.agentRepo.Delete(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete agent"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "agent deleted successfully"})
+}
+
+// CreateAgentAdmin 管理员创建Agent（官方Agent，无需用户归属）
+func (h *AgentHandler) CreateAgentAdmin(c *gin.Context) {
+	var req CreateAgentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 检查名称是否已存在
+	existing, err := h.agentRepo.GetByName(c.Request.Context(), req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent name"})
+		return
+	}
+	if existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "agent name already exists"})
+		return
+	}
+
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+	isOfficial := true
+	if req.IsOfficial != nil {
+		isOfficial = *req.IsOfficial
+	}
+	isFeatured := false
+	if req.IsFeatured != nil {
+		isFeatured = *req.IsFeatured
+	}
+
+	agent := &model.Agent{
+		Name:           req.Name,
+		Description:    req.Description,
+		Avatar:         req.Avatar,
+		Type:           req.Type,
+		Category:       req.Category,
+		Prompt:         req.Prompt,
+		Model:          req.Model,
+		Price:          req.Price,
+		PriceType:      req.PriceType,
+		StrategyConfig: req.StrategyConfig,
+		IsActive:       isActive,
+		IsFeatured:     isFeatured,
+		IsOfficial:     isOfficial,
+	}
+
+	if err := h.agentRepo.Create(c.Request.Context(), agent); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, agentToResponse(agent))
+}
+
+// UpdateAgentAdminRequest 管理员更新Agent请求（所有字段可选）
+type UpdateAgentAdminRequest struct {
+	Name           string     `json:"name" binding:"omitempty,min=1,max=30"`
+	Description    string     `json:"description" binding:"max=300"`
+	Avatar         string     `json:"avatar"`
+	Type           string     `json:"type" binding:"omitempty,max=30"`
+	Category       string     `json:"category"`
+	Prompt         string     `json:"prompt"`
+	Model          string     `json:"model"`
+	Price          float64    `json:"price"`
+	PriceType      string     `json:"price_type"`
+	StrategyConfig model.JSON `json:"strategy_config"`
+	IsActive       *bool      `json:"is_active"`
+	IsFeatured     *bool      `json:"is_featured"`
+}
+
+// UpdateAgentAdmin 管理员更新Agent（无需所有权检查）
+func (h *AgentHandler) UpdateAgentAdmin(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agent id"})
+		return
+	}
+
+	agent, err := h.agentRepo.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch agent"})
+		return
+	}
+	if agent == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
+
+	var req UpdateAgentAdminRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Name != "" {
+		agent.Name = req.Name
+	}
+	agent.Description = req.Description
+	agent.Avatar = req.Avatar
+	if req.Type != "" {
+		agent.Type = req.Type
+	}
+	agent.Category = req.Category
+	agent.Prompt = req.Prompt
+	agent.Model = req.Model
+	agent.Price = req.Price
+	agent.PriceType = req.PriceType
+	agent.StrategyConfig = req.StrategyConfig
+	if req.IsActive != nil {
+		agent.IsActive = *req.IsActive
+	}
+	if req.IsFeatured != nil {
+		agent.IsFeatured = *req.IsFeatured
+	}
+
+	if err := h.agentRepo.Update(c.Request.Context(), agent); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update agent"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "agent updated successfully"})
+}
+
+// DeleteAgentAdmin 管理员删除Agent（无需所有权检查）
+func (h *AgentHandler) DeleteAgentAdmin(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agent id"})
+		return
+	}
+
+	agent, err := h.agentRepo.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch agent"})
+		return
+	}
+	if agent == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 		return
 	}
 

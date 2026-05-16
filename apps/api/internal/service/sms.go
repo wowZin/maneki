@@ -46,7 +46,7 @@ type smsServiceImpl struct {
 	cfg   *config.SMSConfig
 	redis *redis.Client
 
-	// Aliyun PNS client (lazy init)
+	// Aliyun PNS client (短信认证 + 号码认证)
 	pnsClient *dypnsapi.Client
 }
 
@@ -71,8 +71,6 @@ func (s *smsServiceImpl) initAliyunClient() error {
 		return fmt.Errorf("aliyun access key not configured")
 	}
 
-	// 使用 openapi Config 初始化 PNS 客户端
-	// AccessKeyId/AccessKeySecret 直接设置在 Config 上即可
 	cfg := &openapiutil.Config{
 		AccessKeyId:     tea.String(s.cfg.AccessKeyID),
 		AccessKeySecret: tea.String(s.cfg.AccessKeySecret),
@@ -129,7 +127,7 @@ func (s *smsServiceImpl) GetAuthToken(ctx context.Context) (*AuthTokenResult, er
 	return &AuthTokenResult{
 		AccessToken: tea.StringValue(resp.Body.TokenInfo.AccessToken),
 		JwtToken:    tea.StringValue(resp.Body.TokenInfo.JwtToken),
-		ExpireTime:  600, // AccessToken 默认有效期 10 分钟
+		ExpireTime:  600,
 	}, nil
 }
 
@@ -140,7 +138,6 @@ func (s *smsServiceImpl) VerifyPhoneWithToken(ctx context.Context, phone, spToke
 	}
 
 	if s.cfg.Mode == "mock" {
-		// Mock模式下直接通过
 		return nil
 	}
 
@@ -193,29 +190,33 @@ func (s *smsServiceImpl) SendVerifyCode(ctx context.Context, phone string) (stri
 			return "", fmt.Errorf("pns client not initialized")
 		}
 
-		templateCode := s.cfg.TemplateCode
-		if templateCode == "" {
-			templateCode = "100001" // 默认使用阿里云系统模板：登录/注册验证码
-		}
-
 		resp, err := s.pnsClient.SendSmsVerifyCode(&dypnsapi.SendSmsVerifyCodeRequest{
 			PhoneNumber:      tea.String(phone),
 			SignName:         tea.String(s.cfg.SignName),
-			TemplateCode:     tea.String(templateCode),
+			TemplateCode:     tea.String(s.cfg.TemplateCode),
+			TemplateParam:    tea.String(`{"code":"##code##","min":"5"}`),
 			CodeLength:       tea.Int64(6),
 			ValidTime:        tea.Int64(300),
 			ReturnVerifyCode: tea.Bool(true),
 		})
 		if err != nil {
+			fmt.Printf("[SMS DEBUG] SendSmsVerifyCode SDK error: %v\n", err)
 			return "", fmt.Errorf("send sms failed: %w", err)
 		}
 
 		if resp.Body == nil || resp.Body.Code == nil || tea.StringValue(resp.Body.Code) != "OK" {
 			msg := "unknown error"
-			if resp.Body != nil && resp.Body.Message != nil {
-				msg = tea.StringValue(resp.Body.Message)
+			codeStr := ""
+			if resp.Body != nil {
+				if resp.Body.Message != nil {
+					msg = tea.StringValue(resp.Body.Message)
+				}
+				if resp.Body.Code != nil {
+					codeStr = tea.StringValue(resp.Body.Code)
+				}
 			}
-			return "", fmt.Errorf("send sms failed: %s", msg)
+			fmt.Printf("[SMS DEBUG] SendSmsVerifyCode API error: code=%s, message=%s\n", codeStr, msg)
+			return "", fmt.Errorf("send sms failed: [%s] %s", codeStr, msg)
 		}
 
 		if resp.Body.Model != nil && resp.Body.Model.VerifyCode != nil {
@@ -290,29 +291,33 @@ func (s *smsServiceImpl) SendForgotPasswordCode(ctx context.Context, phone strin
 			return "", fmt.Errorf("pns client not initialized")
 		}
 
-		templateCode := s.cfg.TemplateCode
-		if templateCode == "" {
-			templateCode = "100001"
-		}
-
 		resp, err := s.pnsClient.SendSmsVerifyCode(&dypnsapi.SendSmsVerifyCodeRequest{
 			PhoneNumber:      tea.String(phone),
 			SignName:         tea.String(s.cfg.SignName),
-			TemplateCode:     tea.String(templateCode),
+			TemplateCode:     tea.String(s.cfg.TemplateCode),
+			TemplateParam:    tea.String(`{"code":"##code##","min":"5"}`),
 			CodeLength:       tea.Int64(6),
 			ValidTime:        tea.Int64(300),
 			ReturnVerifyCode: tea.Bool(true),
 		})
 		if err != nil {
+			fmt.Printf("[SMS DEBUG] SendSmsVerifyCode SDK error: %v\n", err)
 			return "", fmt.Errorf("send sms failed: %w", err)
 		}
 
 		if resp.Body == nil || resp.Body.Code == nil || tea.StringValue(resp.Body.Code) != "OK" {
 			msg := "unknown error"
-			if resp.Body != nil && resp.Body.Message != nil {
-				msg = tea.StringValue(resp.Body.Message)
+			codeStr := ""
+			if resp.Body != nil {
+				if resp.Body.Message != nil {
+					msg = tea.StringValue(resp.Body.Message)
+				}
+				if resp.Body.Code != nil {
+					codeStr = tea.StringValue(resp.Body.Code)
+				}
 			}
-			return "", fmt.Errorf("send sms failed: %s", msg)
+			fmt.Printf("[SMS DEBUG] SendSmsVerifyCode API error: code=%s, message=%s\n", codeStr, msg)
+			return "", fmt.Errorf("send sms failed: [%s] %s", codeStr, msg)
 		}
 
 		if resp.Body.Model != nil && resp.Body.Model.VerifyCode != nil {
